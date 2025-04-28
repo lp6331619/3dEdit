@@ -46,6 +46,7 @@
         <n-select 
           v-model:value="childrenData[1].textureType" 
           :options="getTextureTypesByMaterial" 
+          @update:value="handleTextureChange"
         />
       </setting-item>
       <n-button @click="applyTexture" :disabled="!files">应用贴图</n-button>
@@ -124,7 +125,6 @@ const handleMaterialChange = (newMaterialType: string) => {
   newChildrenData[1].textureType = getTextureTypesByMaterial.value[0].value || undefined
   // 清空配置中的所有贴图
   if (newChildrenData[1].config) {
-    
     textureKeys.forEach(key => {
       if (newChildrenData[1].config[key]) {
         delete newChildrenData[1].config[key]
@@ -139,16 +139,40 @@ const handleMaterialChange = (newMaterialType: string) => {
      f&& chartEditStore.setComponentListAll(f, newChildrenData, 'children')
   }
 }
+const handleTextureChange = (newTextureType: string) => {
+  // 创建新的数据副本
+  const newChildrenData = deepClone(props.childrenData)
+  // 在副本上进行修改
+  newChildrenData[1].textureType = newTextureType
+  // 清空配置中的所有贴图
+  if (newChildrenData[1].config) {
+    let url = ''
+    textureKeys.forEach(key => {
+      if (newChildrenData[1].config[key]) {
+        url = newChildrenData[1].config[key]
+        delete newChildrenData[1].config[key]
+      }
+    })
+    newChildrenData[1].config[newTextureType] =  url
+    // 更新组件数据
+    const { selectId = [] } = targetChart
+    const [f] = selectId
+    f && chartEditStore.setComponentListAll(f, newChildrenData, 'children')
+  }
+}
+
 
 const applyTexture = async()=>{
-  if(!files.value || files.value.indexOf('http')>-1) return
+  if(!files.value || !files.value.size) return
   const {selectId=[]} = targetChart
   const [f] = selectId
   const res = await storedFileUploadFile({file:files.value})
   const config = deepClone(props.childrenData)
   // 使用选择的贴图类型
   const textureType = config[1].textureType || 'map'
-  config[1].config[textureType] = res.data
+  textureKeys.map(item=>{
+    config[1].config[item] = item == textureType?res.data: undefined
+  })
   f && chartEditStore.setComponentListAll(f,config ,'children')
 }
 // 删除图片

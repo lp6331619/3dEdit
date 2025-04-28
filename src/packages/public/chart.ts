@@ -120,8 +120,7 @@ export const materialTextureTypes = {
     { label: '粗糙度贴图', value: 'roughnessMap' },
     { label: '金属度贴图', value: 'metalnessMap' },
     { label: '环境遮蔽贴图', value: 'aoMap' },
-    { label: '位移贴图', value: 'displacementMap' },
-    { label: '自发光贴图', value: 'emissiveMap' }
+    { label: '位移贴图', value: 'displacementMap' }
   ],
 
   MeshToonMaterial: [
@@ -134,13 +133,11 @@ export const materialTextureTypes = {
     { label: '颜色贴图', value: 'map' },
     { label: '法线贴图', value: 'normalMap' },
     { label: '高光贴图', value: 'specularMap' },
-    { label: '自发光贴图', value: 'emissiveMap' },
     { label: '透明度贴图', value: 'alphaMap' }
   ],
 
   MeshLambertMaterial: [
     { label: '颜色贴图', value: 'map' },
-    { label: '自发光贴图', value: 'emissiveMap' },
     { label: '透明度贴图', value: 'alphaMap' },
     { label: '环境遮蔽贴图', value: 'aoMap' }
   ],
@@ -174,7 +171,6 @@ export const textureKeys = [
   'alphaMap',
   'aoMap',
   'displacementMap',
-  'emissiveMap',
   'gradientMap',
   'specularMap',
   'matcap',

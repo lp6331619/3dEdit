@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, PropType, shallowRef, watch } from 'vue'
+import { ref, onMounted, PropType, watch } from 'vue'
 import * as THREE from 'three'
-import { useTexture, useRenderLoop } from '@tresjs/core';
-import { materialList ,materialTextureTypes,textureKeys} from '@/packages/public/chart'
+import { useTexture } from '@tresjs/core';
+import { materialList, textureKeys } from '@/packages/public/chart'
+
 // 类型定义
 interface MaterialConfig { [key: string]: any; }
 interface MaterialItem { 
@@ -16,58 +17,93 @@ const props = defineProps({
   item: { type: Object as PropType<MaterialItem>, required: true },
 })
 
-// 使用 shallowRef 存储最终的材质属性
-const materialProps = shallowRef<MaterialConfig>({});
-const isReady = ref(false);
+const materialData = ref({});
+const componentKey = ref(0);
 
-// 处理材质属性的函数
-const updateMaterialProps = () => {
-  console.log(`处理材质: ${props.item.type}`, props.item);
-  // 检查 item 是否是材质类型
-  let types = materialList.map((item)=>{
-    return item.value
-  })
-  //说明一定是材质
-  if(types.includes(props.item.type)){
-    if (textureKeys.includes(props.item.textureType)) {
-      isReady.value = false;
+// 加载和准备材质数据
+const prepareMaterial = async () => {
+  try {
+    // 基本检查
+    if (!props.item || !props.item.config) {
+      console.warn('缺少材质配置');
+      return;
     }
-  }else{
-    // 直接使用配置对象
-    materialProps.value = { ...props.item.config };
-    isReady.value = true;
+    
+    const config = { ...props.item.config };
+    
+    // 收集贴图配置
+    const textureConfig = {};
+    
+    for (const key in config) {
+      if (textureKeys.includes(key) && config[key]) {
+        // 添加时间戳避免缓存
+        if (typeof config[key] === 'string' && config[key].includes('http')) {
+          textureConfig[key] = config[key] + (config[key].includes('?') ? '&' : '?') + 'v=' + Date.now();
+        } else {
+          textureConfig[key] = config[key];
+        }
+      }
+    }
+    
+    // 加载贴图
+    if (Object.keys(textureConfig).length > 0) {
+      try {
+        const textures = await useTexture(textureConfig);
+        
+        // 处理贴图
+        for (const key in textures) {
+          if (textures[key] && textures[key].isTexture) {
+            // 设置贴图需要更新
+            textures[key].needsUpdate = true;
+            
+            // 特别处理自发光贴图
+            if (key === 'emissiveMap') {
+              // 确保自发光贴图有正确的UV设置
+              textures[key].wrapS = THREE.RepeatWrapping;
+              textures[key].wrapT = THREE.RepeatWrapping;
+            }
+          }
+        }
+        
+        // 合并配置
+        materialData.value = {
+          ...config,
+          ...textures,
+        };
+        
+        // 如果有自发光贴图，确保设置发光颜色
+        if (textures.emissiveMap) {
+          materialData.value.emissive = new THREE.Color(0xffffff);
+          materialData.value.emissiveIntensity = 1.0;
+        }
+      } catch (error) {
+        console.error('贴图加载错误:', error);
+        materialData.value = config;
+      }
+    } else {
+      materialData.value = config;
+    }
+    
+    // 强制重新渲染
+    componentKey.value++;
+    
+  } catch (error) {
+    console.error('材质准备错误:', error);
   }
 };
-// 生命周期钩子
-onMounted(() => {
-  updateMaterialProps();
-  getData()
-});
-const pbrTexture = ref()
-const getData = async()=>{
-  let obj = {}
-   for(let ii in props.item.config){
-    textureKeys[ii] && (obj[ii]=props.item.config[ii])
-   }
-   pbrTexture.value = await useTexture({
-    ...obj
-  });
-  pbrTexture.value = {...props.item.config,...pbrTexture.value}
-}
-// 监听属性变化
-watch(() => props.item, updateMaterialProps, { deep: true });
+
+// 监听配置变化
+watch(() => props.item, prepareMaterial, { deep: true, immediate: true });
+
+// 初始化
+onMounted(prepareMaterial);
 </script>
 
 <template>
   <component
-    v-if="isReady"
+    v-if="props.item && props.item.type"
     :is="'Tres' + props.item.type"
-    v-bind="materialProps"
-  >
-  </component>
-  <TresMeshStandardMaterial
-    v-if="pbrTexture"
-      v-bind="pbrTexture"
-      displacement-scale="0.2"
+    :key="componentKey"
+    v-bind="materialData"
   />
 </template>
