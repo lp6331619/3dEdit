@@ -140,6 +140,8 @@ const lightSetting = chartEditStore.getLightSetting
 const transformControlsState = chartEditStore.getTransformControlsState
 // 组件列表ref
 const componentListRef = chartEditStore.getComponentListRef
+
+
 const emits = defineEmits(['click', 'rightClick'])
 const TresCanvasRef = shallowRef<any>()
 const cameraRefs = shallowRef<any>()
@@ -256,7 +258,6 @@ const { onLoop, onBeforeLoop, onAfterLoop, pause, resume } = useRenderLoop()
 const ControlsStateMouseDown = (isMove: boolean) => {
   if (!transformRef.value || isMove) return
   const item = chartEditStore.getComponentListItem(transformRef.value.onlyId)
-  console.log(item,'变换控制器')
   if (!item) return
   const position = transformRef.value.position.clone()
   const scale = transformRef.value.scale.clone()

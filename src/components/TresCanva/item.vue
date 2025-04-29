@@ -1,6 +1,6 @@
 <template>
     
-    <TresGroup v-for="(subMesh, index) in componentList" :key="subMesh.key" >
+    <TresGroup v-for="(subMesh, index) in componentList"  >
       <!-- 添加的mesh对象 -->
       <!-- @pointer-enter="onPointerEnter($event)"
     @pointer-leave="onPointerLeave($event)" -->
@@ -11,12 +11,14 @@
           cast-shadow
           :name="subMesh.id + index"
           :onlyId="subMesh.id"
+          :key="subMesh.key"
           @double-click="fitToBox($event, subMesh, index)"
           @context-menu="clickRight($event, subMesh, index)"
           @pointer-down="clickMesh($event, subMesh, index)"
         >
           <AsyncMaterial
             v-for="(item,i) in subMesh.children"
+            :key="subMesh.key"
             :item="item"
           />
         </TresMesh>
@@ -28,7 +30,7 @@
         :position="subMesh.option?.position || [0, 0, 0]"
         :ref="el => (subMesh.el = el)"
       >
-        <Html v-bind="htmlState" >
+        <Html v-bind="htmlState" :key="subMesh.key">
           <component
             class="edit-content-chart"
             :class="animationsClass(subMesh.styles.animations)"
@@ -44,7 +46,7 @@
         </Html>
       </TresGroup>
       <Suspense v-else-if="subMesh.type == 'GLTFModel' && !subMesh.status.hide" >
-        <TresGroup :ref="el => (subMesh.el = el)" :onlyId="subMesh.id" v-bind="subMesh.option" >
+        <TresGroup :ref="el => (subMesh.el = el)" :onlyId="subMesh.id" v-bind="subMesh.option" :key="subMesh.key">
           <ModelLoad
             :url="subMesh.meshConfig"
             :styles="subMesh.styles"
@@ -60,8 +62,8 @@
           /> -->
         </TresGroup>
       </Suspense>
-      <Sky v-else-if="subMesh.type == 'Sky' && !subMesh.status.hide" v-bind="subMesh.option"  />
-      <Stars v-else-if="subMesh.type == 'Stars' && !subMesh.status.hide" v-bind="subMesh.option"  />
+      <Sky v-else-if="subMesh.type == 'Sky' && !subMesh.status.hide" v-bind="subMesh.option" :key="subMesh.key" />
+      <Stars v-else-if="subMesh.type == 'Stars' && !subMesh.status.hide" v-bind="subMesh.option" :key="subMesh.key"/>
       <TresGroup v-else-if="subMesh.isGroup && !subMesh.status.hide" :ref="el => (subMesh.el = el)" :onlyId="subMesh.id" v-bind="subMesh.option">
         <tresItem :components="instance" :componentList="subMesh.groupList" :isPreview="isPreview" @click="(e)=>emits('click',e)" @rightClick="clickRight" @fitTo="(current)=>emits('fitTo',current)"/>
       </TresGroup>

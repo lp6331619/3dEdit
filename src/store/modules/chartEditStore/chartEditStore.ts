@@ -394,6 +394,9 @@ export const useChartEditStore = defineStore({
     setTransformControlsState(value: any) {
       this.transformControlsState.mode = value
     },
+    setTransformControlsStateEnabled(value: any) {
+      this.transformControlsState.enabled = value
+    },
     // * 设置目标数据 hover
     setTargetHoverChart(hoverId?: TargetChartType['hoverId']) {
       this.targetChart.hoverId = hoverId
@@ -594,8 +597,8 @@ export const useChartEditStore = defineStore({
     //设置option
     setComponentList(d: String, newData: CreateComponentType | CreateComponentGroupType, key: string = 'option') {
       let id = d
-      // if(id==undefined){
-      // id = this.getTargetChart()
+      // if (id == undefined) {
+      //   id = this.getTargetChart()
       // }
       this.componentList.forEach((item: any) => {
         if (item.id == id) {
