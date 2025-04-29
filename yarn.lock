@@ -2442,7 +2442,7 @@
   "resolved" "http://192.168.100.4:4873/package/entities/3.0.1"
   "version" "3.0.1"
 
-"entities@^4.5.0":
+"entities@^4.4.0", "entities@^4.5.0":
   "integrity" "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw=="
   "resolved" "http://192.168.100.4:4873/package/entities/4.5.0"
   "version" "4.5.0"
@@ -3287,7 +3287,7 @@
     "capital-case" "^1.0.4"
     "tslib" "^2.0.3"
 
-"highlight.js@^11.5.0":
+"highlight.js@^11.5.0", "highlight.js@^11.9.0":
   "integrity" "sha512-SYVnVFswQER+zu1laSya563s+F8VDGt7o35d4utbamowvUNLLMovFqwCLSocpZTz3MgaSRA1IbqRWZv97dtErQ=="
   "resolved" "http://192.168.100.4:4873/package/highlight.js/11.10.0"
   "version" "11.10.0"
@@ -3859,6 +3859,13 @@
     "rechoir" "^0.8.0"
     "resolve" "^1.20.0"
 
+"linkify-it@^5.0.0":
+  "integrity" "sha512-5aHCbzQRADcdP+ATqnDuhhJ/MRIqDkZX5pyjFHRRysS8vZ5AbqGEoFIb6pYHPZ+L/OC2Lc+xT8uHVVR5CAK/wQ=="
+  "resolved" "https://registry.npmmirror.com/linkify-it/-/linkify-it-5.0.0.tgz"
+  "version" "5.0.0"
+  dependencies:
+    "uc.micro" "^2.0.0"
+
 "loader-runner@^4.2.0":
   "integrity" "sha512-3R/1M+yS3j5ou80Me59j7F9IMs4PXs3VqRrm0TU3AbKPxlmpoY1TNscJV/oGJXo8qCatFGTfDbY6W6ipGOYXfg=="
   "resolved" "http://192.168.100.4:4873/package/loader-runner/4.3.0"
@@ -3953,10 +3960,27 @@
   "resolved" "http://192.168.100.4:4873/package/map-cache/0.2.2"
   "version" "0.2.2"
 
+"markdown-it@^14.1.0":
+  "integrity" "sha512-a54IwgWPaeBCAAsv13YgmALOF1elABB08FxO9i+r4VFk5Vl4pKokRPeX8u5TCgSsPi6ec1otfLjdOpVcgbpshg=="
+  "resolved" "https://registry.npmmirror.com/markdown-it/-/markdown-it-14.1.0.tgz"
+  "version" "14.1.0"
+  dependencies:
+    "argparse" "^2.0.1"
+    "entities" "^4.4.0"
+    "linkify-it" "^5.0.0"
+    "mdurl" "^2.0.0"
+    "punycode.js" "^2.3.1"
+    "uc.micro" "^2.1.0"
+
 "mdn-data@2.0.30":
   "integrity" "sha512-GaqWWShW4kv/G9IEucWScBx9G1/vsFZZJUO+tD26M8J8z3Kw5RDQjaoZe03YAClgeS/SWPOcb4nkFBTEi5DUEA=="
   "resolved" "http://192.168.100.4:4873/package/mdn-data/2.0.30"
   "version" "2.0.30"
+
+"mdurl@^2.0.0":
+  "integrity" "sha512-Lf+9+2r+Tdp5wXDXC4PcIBjTDtq4UKjCPMQhKIuzpJNW0b96kVqSwW0bT7FhRSfmAiFYgP+SCRvdrDozfh0U5w=="
+  "resolved" "https://registry.npmmirror.com/mdurl/-/mdurl-2.0.0.tgz"
+  "version" "2.0.0"
 
 "memoize-one@^6.0.0":
   "integrity" "sha512-rkpe71W0N0c0Xz6QD0eJETuWAJGnJ9afsl1srmwPrI+yBCkge5EycXXbYRyvL29zZVUWQCY7InPRCv3GDXuZNw=="
@@ -4667,6 +4691,11 @@
     "pug-parser" "^6.0.0"
     "pug-runtime" "^3.0.1"
     "pug-strip-comments" "^2.0.0"
+
+"punycode.js@^2.3.1":
+  "integrity" "sha512-uxFIHU0YlHYhDQtV4R9J6a52SLx28BCjT+4ieh7IGbgwVJWO+km431c4yRlREUAsAmt/uMjQUyQHNEPf0M39CA=="
+  "resolved" "https://registry.npmmirror.com/punycode.js/-/punycode.js-2.3.1.tgz"
+  "version" "2.3.1"
 
 "punycode@^2.1.0":
   "integrity" "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="
@@ -5392,6 +5421,11 @@
   "integrity" "sha512-yNIatDa5iaofVozS/uQJEl3JRWLKKGJKh6Yaiv0GLGSuhpFJe7P3SbHZ8/yjAHRQwKRoA6YZqlfjXWmVzoVSMw=="
   "resolved" "http://192.168.100.4:4873/package/typescript/4.6.3"
   "version" "4.6.3"
+
+"uc.micro@^2.0.0", "uc.micro@^2.1.0":
+  "integrity" "sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A=="
+  "resolved" "https://registry.npmmirror.com/uc.micro/-/uc.micro-2.1.0.tgz"
+  "version" "2.1.0"
 
 "ufo@^1.5.4":
   "integrity" "sha512-UsUk3byDzKd04EyoZ7U4DOlxQaD14JUKQl6/P7wiX4FNvUfm3XL246n9W5AmqwW5RSFJ27NAuM0iLscAOYUiGQ=="

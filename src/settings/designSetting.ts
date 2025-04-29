@@ -29,7 +29,7 @@ export const theme = {
 }
 export const borderConfig = {
   rotation: [0, 0, 0, 'XYZ'],
-  scale: [1, 1, 1],
+  scale: [1, 1, 1]
 }
 //默认文字配置
 export const defaultBorderText = {
@@ -42,13 +42,13 @@ export const defaultBorderText = {
   paddingY: 10,
   textAlign: 'center', // 水平对齐方式
   fontWeight: 'normal',
-  position:[0,0,0],
+  position: [0, 0, 0],
   isDynamics: false, //是否使用动态数据
   dataList: [], //动态数据
   // 字间距
   letterSpacing: 5,
   writingMode: 'horizontal-tb',
-  ...borderConfig,
+  ...borderConfig
 }
 //可以绑定数据的组件类型
 export const setDataTypes = [
@@ -69,6 +69,42 @@ export const setDataTypes = [
   'Border13',
   'Image'
 ]
+//计算动作结果
+export const countVal = (list: any, val: any) => {
+  const defaultResult = { color: '', val: val }
+  if (list?.length > 0) {
+    list.map((item: any) => {
+      let isMatch = false
+      switch (item.condition) {
+        case '>=':
+          isMatch = val >= item.value
+          break
+        case '>':
+          isMatch = val > item.value
+          break
+        case '<=':
+          isMatch = val <= item.value
+          break
+        case '<':
+          isMatch = val < item.value
+          break
+        case '===':
+        case '==':
+          isMatch = val === item.value
+          break
+        case '!==':
+        case '!=':
+          isMatch = val !== item.value
+          break
+        default:
+          isMatch = false
+      }
+      defaultResult.color = isMatch ? item.color : ''
+      defaultResult.val = isMatch ? item.alias || val : val
+    })
+  }
+  return defaultResult
+}
 //只可以配置输出通道的组件
 export const setDataTypesOut = ['Image']
 // 图表初始配置(px)

@@ -57,7 +57,7 @@
       <setting-item name=""><n-switch v-model:value="optionData.isDynamics" size="small"></n-switch></setting-item
     ></setting-item-box>
     <setting-item-box v-if="optionData.isDynamics" name="文字" :alone="true">
-      <setting-item v-for="(item, i) in optionData.dataList" :key="i" name="通道名称">
+      <setting-item v-for="(item, i) in optionData.dataList" :class="i!==0 && 'pt-20'" :key="i">
         <div class="flex">
           <n-input v-model:value="item.label" size="small"></n-input>
           <n-input
@@ -85,7 +85,19 @@
             :style="{ width: '80%' }"
             :options="justifyOptions"
           />
+          <n-button class="ml10" @click="item.effectDialogFlag=true" size="small">动作</n-button>
         </div>
+        <el-dialog 
+          destroy-on-close
+          :close-on-click-modal="false"
+          v-model="item.effectDialogFlag"
+          draggable
+          append-to-body
+          width="730"
+          z-index="999"
+          title="动作">
+            <Action @close="item.effectDialogFlag=false" :optionData="item"/>
+        </el-dialog>
       </setting-item>
     </setting-item-box>
     <setting-item-box v-else name="文字" :alone="true">
@@ -145,12 +157,15 @@
       </SettingItem>
     </SettingItemBox>
   </CollapseItem>
+
+ 
 </template>
 
 <script setup lang="ts">
-import { PropType } from 'vue'
+import { PropType,ref } from 'vue'
 import { CollapseItem, SettingItemBox, SettingItem } from '@/components/Pages/ChartItemSetting'
-
+const effectDialogFlag = ref(false)
+import {Action} from '@/components/Action'
 const props = defineProps({
   optionData: {
     type: Object,

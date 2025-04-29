@@ -180,3 +180,42 @@ export const textureKeys = [
   'sheenMap',
   'transmissionMap'
 ]
+
+export const ConditionSelect = {
+  eq: {
+    label: '==',
+    value(a: any, b: any) {
+      return a === b
+    }
+  },
+  nep: {
+    label: '!=',
+    value(a: any, b: any) {
+      return a !== b
+    }
+  },
+  gt: {
+    label: '>',
+    value(a: any, b: any) {
+      return a > b
+    }
+  },
+  lt: {
+    label: '<',
+    value(a: any, b: any) {
+      return a < b
+    }
+  },
+  egt: {
+    label: '>=',
+    value(a: any, b: any) {
+      return a >= b
+    }
+  },
+  elt: {
+    label: '<=',
+    value(a: any, b: any) {
+      return a <= b
+    }
+  }
+}

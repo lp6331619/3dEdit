@@ -101,13 +101,6 @@ export default defineConfig({
         rewrite: path => {
           return path.replace(/^\/api/, '')
         }
-      },
-      proxy: {
-        '/api-texture': {
-          target: 'https://minioss.cenozoicloud.com',
-          changeOrigin: true,
-          rewrite: path => path.replace(/^\/api-texture/, '')
-        }
       }
     }
   },

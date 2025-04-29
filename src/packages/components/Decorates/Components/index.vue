@@ -29,7 +29,7 @@
           {{ item.label }}:
           <div
             :style="{
-              color: item.cnlColor,
+              color: item.actionColor || item.cnlColor,
               fontSize: item.cnlSize + 'px',
               margin: '0!important'
             }"
