@@ -234,64 +234,11 @@ onAfterLoop((res) => {})
 //   }
 // }
 
-const refreshTextures = () => {
-  props.componentList.forEach(subMesh => {
-    if(subMesh.children) {
-      subMesh.children.forEach(item => {
-        if(item.el && item.el.material) {
-          // 强制材质更新
-          item.el.material.needsUpdate = true;
-          
-          // 如果材质有dispose方法，先销毁再重建
-          if(item.el.material.dispose) {
-            const oldMaterial = item.el.material;
-            // 创建新材质
-            const newMaterial = oldMaterial.clone();
-            // 确保新材质的贴图都是最新的
-            for(let prop in newMaterial) {
-              if(newMaterial[prop] && newMaterial[prop].isTexture) {
-                newMaterial[prop].needsUpdate = true;
-              }
-            }
-            // 替换材质
-            item.el.material = newMaterial;
-            // 销毁旧材质
-            oldMaterial.dispose();
-          } else {
-            // 遍历材质中的所有贴图并强制更新
-            for(let prop in item.el.material) {
-              if(item.el.material[prop] && item.el.material[prop].isTexture) {
-                item.el.material[prop].needsUpdate = true;
-              }
-            }
-          }
-        }
-      });
-    }
-  });
-};
 
-// 改进监听，在 props.componentList 数组的引用没变但内部内容变化时也能触发
-// 使用一个计数器来强制刷新
-const refreshCounter = ref(0);
-
-watch(() => props.componentList, () => {
-  refreshTextures();
-  refreshCounter.value++;
-}, {deep: true});
 
 // 定期检查是否需要刷新贴图
 onMounted(() => {
-  const checkInterval = setInterval(() => {
-    // 只在预览模式下禁用自动刷新
-    if (!props.isPreview) {
-      refreshTextures();
-    }
-  }, 2000); // 每2秒检查一次
-  
-  onUnmounted(() => {
-    clearInterval(checkInterval);
-  });
+ 
 });
 </script>
 

@@ -20,6 +20,68 @@ const props = defineProps({
 const materialData = ref({});
 const componentKey = ref(0);
 
+// 1. 添加贴图缓存
+const textureCache = {};
+
+const loadTextureWithCache = async (url) => {
+  // 移除时间戳参数以便缓存
+  const baseUrl = url.split('?')[0];
+  
+  if (!textureCache[baseUrl]) {
+    console.log('加载新贴图:', baseUrl);
+    const texture = await useTexture(url);
+    
+    // 优化贴图设置
+    texture.generateMipmaps = false; // 禁用mipmap生成
+    texture.minFilter = THREE.LinearFilter; // 使用简单过滤
+    texture.anisotropy = 1; // 降低各向异性过滤
+    
+    textureCache[baseUrl] = texture;
+  }
+  
+  return textureCache[baseUrl];
+};
+
+// 2. 清理和优化getData函数
+const getData = async() => {
+  if (!props.item || !props.item.config) return;
+  
+  let obj = {};
+  let hasTextureChanges = false;
+  
+  // 检查是否需要更新贴图
+  for (let key in props.item.config) {
+    if (textureKeys.includes(key)) {
+      const currentValue = props.item.config[key];
+      const previousValue = materialData.value?.[key]?.source?.data?.src;
+      
+      if (currentValue && (!previousValue || !previousValue.includes(currentValue))) {
+        obj[key] = currentValue;
+        hasTextureChanges = true;
+      }
+    }
+  }
+  
+  // 只在贴图真正变化时才更新
+  if (hasTextureChanges) {
+    console.log('贴图已变化，更新材质');
+    
+    // 加载所有贴图
+    const newTextures = {};
+    for (let key in obj) {
+      if (textureKeys.includes(key) && obj[key]) {
+        newTextures[key] = await loadTextureWithCache(obj[key]);
+      }
+    }
+    
+    // 更新材质
+    materialData.value = {...props.item.config, ...newTextures};
+    
+    // 确保材质更新
+    componentKey.value++;
+  }
+};
+
 // 加载和准备材质数据
 const prepareMaterial = async () => {
   try {

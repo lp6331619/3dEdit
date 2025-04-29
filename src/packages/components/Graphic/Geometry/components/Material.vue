@@ -181,8 +181,6 @@ const clearImg = ()=>{
   files.value = undefined
 }
 
-
-
 onMounted(()=>{
   const textureType = props.childrenData[1].textureType || 'map'
   fileList.value = props.childrenData[1].config?.[textureType] 
@@ -193,7 +191,6 @@ onMounted(()=>{
         url: props.childrenData[1].config[textureType]
       }] 
     : []
-  console.log(fileList.value,props.childrenData,123123)
   files.value = fileList.value.length ? props.childrenData[1].config[textureType] : undefined
 })
 </script>

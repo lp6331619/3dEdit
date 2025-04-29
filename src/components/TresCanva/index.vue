@@ -1,7 +1,7 @@
 <template>
-  <div style="width: 900px; max-height: 200px; overflow-y: auto">
-    {{ config.componentList[0]?.children}}
-  </div>
+  <!-- <div style="width: 900px; max-height: 200px; overflow-y: auto">
+    {{ transformControlsState}}
+  </div> -->
   <div class="tres-canvas-container">
     <TresCanvas v-bind="canvasConfig" ref="TresCanvasRef" renderMode="on-demand">
       <!-- 轴 -->
@@ -172,6 +172,8 @@ const components = ref(instance.appContext.components)
 // // 提供给子组件
 provide('components', components.value)
 
+
+
 const digList = (list: any) => {
   const min = 1
   const max = 100
@@ -188,6 +190,7 @@ const digList = (list: any) => {
     }
   })
 }
+
 // 更新配置
 watch(
   () => componentList,
@@ -202,6 +205,21 @@ watch(
         item.groupList?.map((cc: any) => {
           cc.el && componentListRef.value.push(cc.el)
         })
+        // 更新贴图
+        item.children?.forEach((itemc:any) => {
+          if (itemc.el && itemc.el.material && !itemc.el.isTransformControls) {
+            // 只更新贴图，不clone材质
+            let needUpdate = false;
+            for (let prop in itemc.el.material) {
+              if (itemc.el.material[prop] && itemc.el.material[prop].isTexture) {
+                itemc.el.material[prop].needsUpdate = true;
+                needUpdate = true;
+              }
+            }
+            // 只在确实有贴图变化时才设置材质更新
+            needUpdate && (itemc.el.material.needsUpdate = true)
+          }
+        });
       })
       console.log(config.componentList, componentListRef.value, '更新组件')
     })
