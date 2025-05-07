@@ -42,13 +42,13 @@
     </setting-item-box>
         <!-- 根据当前材质类型显示对应的贴图选项 -->
     <setting-item-box name="贴图类型">
-      <setting-item>
+      <!-- <setting-item>
         <n-select 
           v-model:value="childrenData[1].textureType" 
           :options="getTextureTypesByMaterial" 
           @update:value="handleTextureChange"
         />
-      </setting-item>
+      </setting-item> -->
       <n-button @click="applyTexture" :disabled="!files">应用贴图</n-button>
     </setting-item-box>
   </collapse-item>

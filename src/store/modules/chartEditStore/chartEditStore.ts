@@ -176,8 +176,10 @@ export const useChartEditStore = defineStore({
       autoRotate: false, //是否自动旋转
       autoRotateSpeed: 2, //选择速度
       enableZoom: true, //启用缩放
-      zoomSpeed: 5 //缩放速度
+      zoomSpeed: 5, //缩放速度
 
+      cameraPosition: [20, 20, 20], //摄像机的位置
+      cameraLookAt: [0, 0, 0] //摄像机的lookAt
       // minZoom: 0.01, //最小缩放
       // maxZoom: 1 // 最大缩放
       // enablePan: true, //启用平移

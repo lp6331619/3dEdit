@@ -2,8 +2,7 @@
     
     <TresGroup v-for="(subMesh, index) in componentList"  >
       <!-- 添加的mesh对象 -->
-      <!-- @pointer-enter="onPointerEnter($event)"
-    @pointer-leave="onPointerLeave($event)" -->
+      <!--  -->
       <Suspense v-if="subMesh.type == 'TresMesh' && !subMesh.status.hide">
         <TresMesh
           :ref="el => (subMesh.el = el)"
@@ -15,6 +14,8 @@
           @double-click="fitToBox($event, subMesh, index)"
           @context-menu="clickRight($event, subMesh, index)"
           @pointer-down="clickMesh($event, subMesh, index)"
+          @pointer-enter="onPointerEnter($event)"
+          @pointer-leave="onPointerLeave($event)"
         >
           <AsyncMaterial
             v-for="(item,i) in subMesh.children"
@@ -46,13 +47,15 @@
         </Html>
       </TresGroup>
       <Suspense v-else-if="subMesh.type == 'GLTFModel' && !subMesh.status.hide" >
-        <TresGroup :ref="el => (subMesh.el = el)" :onlyId="subMesh.id" v-bind="subMesh.option" :key="subMesh.key">
+        <TresGroup :ref="el => (subMesh.el = el)" :onlyId="subMesh.id" v-bind="subMesh.option" :key="subMesh.key"  >
           <ModelLoad
             :url="subMesh.meshConfig"
             :styles="subMesh.styles"
             :data="subMesh"
             @context-menu="fitToBox($event, subMesh, index)"
             @pointer-down="!isPreview &&clickMesh($event, subMesh, index,true)"
+            @pointer-enter="onPointerEnter($event)"
+            @pointer-leave="onPointerLeave($event)"
           />
           <!-- @pointer-down="clickMesh($event, subMesh, index)" -->
           <!-- <GLTFModel
@@ -129,7 +132,7 @@ const ModelLoad = defineAsyncComponent(() => import('@/components/ModelLoad/inde
 const tresItem = defineAsyncComponent(() => import('./item.vue'))
 const chartEditStore = useChartEditStore()
 const { transformRef, canvasRefs } = storeToRefs(chartEditStore)
-
+const currentModel = computed(() => chartEditStore.getCurrentModel)
 const props = defineProps({
   isPreview: {
     type: Boolean,
@@ -207,34 +210,27 @@ onLoop(({ delta, elapsed }) => {
   // updateEvents(elapsed * 1000, delta * 1000)
 })
 onAfterLoop((res) => {})
+// 在 item.vue 中
+const onPointerEnter = (ev) => {
+  if (!ev) return
+  const { object } = ev
+  if(!currentModel.value) return 
+  // 只在 customColor 不存在时保存
+  if (object && !object.userData.customColor) {
+    object.userData.customColor = object.material.color.getHexString()
+  }
+  object.material.color.set('#DFFF45')
+  object.material = object.material.clone()
+}
 
-// 鼠标移入到模型上时，改变模型颜色
-// const changeColor = throttle((ev) => {
-//   const { object } = ev
-//   const color = object.material.color.getHexString()
-//   if (color !== 'dfff45' && color !== object.customColor) {
-//     object.customColor = color
-//   }
-//   ev.object.material.color.set('#DFFF45')
-// }, 200)
-// function onPointerEnter(ev) {
-//   if (ev) {
-//     // outlinePassList.value[0].name = []
-//     // outlinePassList.value[0].name.push(ev.object.name)
-//     changeColor(ev)
-//     pause()
-//   }
-// }
-
-// 鼠标移出时，恢复模型颜色
-// function onPointerLeave(ev) {
-//   if (ev) {
-//     // outlinePassList.value[0].name = []
-//     const { object } = ev
-//     object.material.color.set('#' + object.customColor)
-//     resume();
-//   }
-// }
+const onPointerLeave = (ev) => {
+  if (!ev) return
+  const { object } = ev
+  if (object && object.userData.customColor) {
+    object.material.color.set('#' + object.userData.customColor)
+    delete object.userData.customColor
+  }
+}
 
 
 

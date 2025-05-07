@@ -1,6 +1,6 @@
 <template>
   <!-- <div style="width: 900px; max-height: 200px; overflow-y: auto">
-    {{ transformControlsState}}
+    {{ lookAt }}-- {{cameraPosition}}
   </div> -->
   <div class="tres-canvas-container">
     <TresCanvas v-bind="canvasConfig" ref="TresCanvasRef" renderMode="on-demand">
@@ -11,7 +11,7 @@
       <!-- 坐标格辅助对象 -->
       <TresGridHelper :args="[1000, 100]" />
       <!-- 透视摄像机 -->
-      <TresPerspectiveCamera ref="cameraRefs" :look-at="lookAt" />
+      <TresPerspectiveCamera ref="cameraRefs"/>
       <CameraControls
         v-if="cameraRefs"
         :camera="cameraRefs"
@@ -79,7 +79,8 @@ import {
   onUpdated,
   shallowRef,
   getCurrentInstance,
-  provide
+  provide,
+  markRaw
 } from 'vue'
 import { useRenderLoop, useTresContext, vLightHelper } from '@tresjs/core'
 // import { initEvents, registerEvent, unregisterEvent, updateEvents } from '@/utils/event'
@@ -101,8 +102,9 @@ import {
   loadingError,
   setComponentPosition,
   JSONParse,
-  throttle,
-  deepClone
+  debounce,
+  deepClone,
+  getCameraPositionLookAt
 } from '@/utils'
 import { Raycaster, Vector2, Vector3, Plane } from 'three'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
@@ -141,7 +143,6 @@ const transformControlsState = chartEditStore.getTransformControlsState
 // 组件列表ref
 const componentListRef = chartEditStore.getComponentListRef
 
-
 const emits = defineEmits(['click', 'rightClick'])
 const TresCanvasRef = shallowRef<any>()
 const cameraRefs = shallowRef<any>()
@@ -152,7 +153,6 @@ const angle = ref({
   polarAngle: 1.25, //方位角
   distance: 25
 })
-const lookAt = ref<any>([0, 0, 0])
 // 模型
 const config = reactive<{
   componentList: any[]
@@ -163,19 +163,12 @@ const config = reactive<{
   lightSetting: [],
   htmlList: {}
 })
-const htmlState = reactive({
-  wrapperClass: 'threeHtml',
-  sprite: true,
-  transform: false,
-  distanceFactor: 10
-})
 const instance = getCurrentInstance()
-const components = ref(instance.appContext.components)
+const components = markRaw(instance.appContext.components)
 // // 提供给子组件
-provide('components', components.value)
+provide('components', components)
 
-
-
+//递归更新所有层级的配置
 const digList = (list: any) => {
   const min = 1
   const max = 100
@@ -240,7 +233,7 @@ const clickRight = (e: any, item: any) => {
   transformRef.value = null
 }
 const fitToBox = (current: any) => {
-  controlsRef?.value?.instance?.fitToBox(current, true)
+  controlsRef.value?.instance?.fitToBox(current, true)
 }
 
 //获取当前选中组件
@@ -279,6 +272,12 @@ const ControlsStateMouseDown = (isMove: boolean) => {
     'option'
   )
 }
+const handleCameraChange = debounce((distance:any) => {
+  const {lookAt,position} = getCameraPositionLookAt(TresCanvasRef.value,distance)
+  cameraConfig.cameraPosition = position
+  cameraConfig.cameraLookAt = lookAt
+  useChartEditStore().setCameraConfig(cameraConfig)
+}, 200)
 let isFirst = true
 //监听控制器
 const OrbitControlsChange = (e: any) => {
@@ -290,11 +289,11 @@ const OrbitControlsChange = (e: any) => {
   cameraConfig.distancess = distance
   cameraConfig.azimuthAngless = azimuthAngle
   cameraConfig.polarAngless = polarAngle
+  handleCameraChange(distance)
   useChartEditStore().setCameraConfig(cameraConfig)
 }
 
 onLoop(({ delta, elapsed }) => {
-  console.log(delta,333)
   pause()
   // updateEvents(elapsed * 1000, delta * 1000)
 })
@@ -304,7 +303,6 @@ onMounted(() => {
   // const domEl = document.querySelector('.tres-canvas-container')!
   setTimeout(() => {
     nextTick(() => {
-      
       if (TresCanvasRef.value) {
         canvasRefs.value = TresCanvasRef.value
         netWorkInternal(2000)
@@ -313,6 +311,18 @@ onMounted(() => {
           polarAngle: cameraConfig.polarAngless, //方位角
           distance: cameraConfig.distancess
         }
+        const{
+          context: {
+            camera,      // Three.js 的摄像机对象
+            scene,       // Three.js 的场景对象
+            renderer,    // Three.js 的渲染器对象
+            // ... 其他
+          },
+          // ... 其他属性
+        } = TresCanvasRef.value
+        // 1. 先获取 ref 拿底层对象
+        const {instance} = controlsRef.value
+        instance?.setLookAt(...cameraConfig.cameraPosition,...cameraConfig.cameraLookAt,true)
       }
 
     })

@@ -383,6 +383,29 @@ export function throttle(func: Function, delay: any) {
     }
   }
 }
+// 防抖
+export function debounce(func: Function, wait: number, immediate: boolean = false) {
+  let timeout: any = null
+  return function () {
+    const context = this
+    const args = arguments
+
+    if (timeout) clearTimeout(timeout)
+
+    if (immediate) {
+      const callNow = !timeout
+      timeout = setTimeout(() => {
+        timeout = null
+      }, wait)
+      if (callNow) func.apply(context, args)
+    } else {
+      timeout = setTimeout(() => {
+        func.apply(context, args)
+      }, wait)
+    }
+  }
+}
+
 export const getVarType = (anything: any) => {
   return Object.prototype.toString.call(anything).slice(8, -1)
 }
@@ -424,4 +447,25 @@ export function inspectError(error, type = 2) {
 
 export function isApiCode(pen, apiCode) {
   return pen.apiType === apiCode //|| pen.apiType === ApiTypeEnum.mixApi;
+}
+
+//获取摄像机的位置和lookAt
+export function getCameraPositionLookAt(TresCanvasRef: any, distance: any) {
+  const {
+    context: {
+      camera, // Three.js 的摄像机对象
+      scene, // Three.js 的场景对象
+      renderer // Three.js 的渲染器对象
+    }
+  } = TresCanvasRef
+  const position = [camera.value.position.x, camera.value.position.y, camera.value.position.z]
+  // 获取摄像机的世界方向（单位向量）
+  const dir = camera.value.getWorldDirection(new THREE.Vector3())
+  // dir 是一个单位向量，表示摄像机正前方的方向
+  // 如果你想要一个“lookAt点”，可以用 position + dir * 距离
+  const lookAt = [position[0] + dir.x * distance, position[1] + dir.y * distance, position[2] + dir.z * distance]
+  return {
+    lookAt,
+    position
+  }
 }

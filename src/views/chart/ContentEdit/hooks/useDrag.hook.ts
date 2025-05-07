@@ -1,4 +1,4 @@
-import { toRaw } from 'vue'
+import { toRaw, computed } from 'vue'
 import { DragKeyEnum, MouseEventButton } from '@/enums/editPageEnum'
 import { createComponent } from '@/packages'
 import { ConfigType } from '@/packages/index.d'
@@ -18,6 +18,7 @@ const { onClickOutSide } = useContextMenu()
 const componentListRef = chartEditStore.getComponentListRef
 const raycaster = new Raycaster()
 const mouse = new Vector2()
+const currentModel = computed(() => chartEditStore.getCurrentModel)
 function onMouseMove(event: MouseEvent, contentBoxRef: any) {
   if (!canvasRefs.value) return
   const { context } = canvasRefs.value
@@ -69,30 +70,23 @@ export const dragHandle = async (e: DragEvent, contentBoxRef: any) => {
     window['$message'].warning(`图表正在研发中, 敬请期待...`)
   }
 }
-// 鼠标移入到模型上时，改变模型颜色
-const changeColor = throttle(ev => {
-  const { object } = ev
-  const color = object.material.color.getHexString()
-  if (color !== 'dfff45' && color !== object.customColor) {
-    object.customColor = color
-  }
-  ev.object.material.color.set('#DFFF45')
-}, 200)
 // 3d点击事件
 export const TresCanvaClick = async (obj: any) => {
   const { item, e, isGltf } = obj
   const id = item.id
   if (!id) return
-  // if (isGltf) {
-  //   const item = componentListRef.value?.find((e: any) => e.onlyId === id)
-  //   if (item) {
-  //     item.children.forEach((i: any) => {})
-  //     changeColor(e)
-  //   }
-  // } else {
-  transformRef.value = item.el
-  transformControlsState.enabled = true
-  // }
+  if (isGltf) {
+    if (currentModel.value) {
+      // transformRef.value = item.el
+      transformControlsState.enabled = false
+    } else {
+      transformRef.value = item.el
+      transformControlsState.enabled = true
+    }
+  } else if (!currentModel.value) {
+    transformRef.value = item.el
+    transformControlsState.enabled = true
+  }
   onClickOutSide()
   // 若此时按下了 CTRL, 表示多选
   setTimeout(() => {
