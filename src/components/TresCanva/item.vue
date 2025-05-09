@@ -2,7 +2,8 @@
     
     <TresGroup v-for="(subMesh, index) in componentList"  >
       <!-- 添加的mesh对象 -->
-      <!--  -->
+      <!--@pointer-enter="onPointerEnter($event)"
+          @pointer-leave="onPointerLeave($event)" -->
       <Suspense v-if="subMesh.type == 'TresMesh' && !subMesh.status.hide">
         <TresMesh
           :ref="el => (subMesh.el = el)"
@@ -14,8 +15,6 @@
           @double-click="fitToBox($event, subMesh, index)"
           @context-menu="clickRight($event, subMesh, index)"
           @pointer-down="clickMesh($event, subMesh, index)"
-          @pointer-enter="onPointerEnter($event)"
-          @pointer-leave="onPointerLeave($event)"
         >
           <AsyncMaterial
             v-for="(item,i) in subMesh.children"
@@ -212,26 +211,26 @@ onLoop(({ delta, elapsed }) => {
 })
 onAfterLoop((res) => {})
 // 在 item.vue 中
-const onPointerEnter = (ev) => {
-  if (!ev) return
-  const { object } = ev
-  if(!currentModel.value) return 
-  // 只在 customColor 不存在时保存
-  if (object && !object.userData.customColor) {
-    object.userData.customColor = object.material.color.getHexString()
-  }
-  object.material.color.set('#DFFF45')
-  object.material = object.material.clone()
-}
+// const onPointerEnter = (ev) => {
+//   if (!ev) return
+//   const { object } = ev
+//   if(!currentModel.value) return 
+//   // 只在 customColor 不存在时保存
+//   if (object && !object.userData.customColor) {
+//     object.userData.customColor = object.material.color.getHexString()
+//   }
+//   object.material.color.set('#DFFF45')
+//   object.material = object.material.clone()
+// }
 
-const onPointerLeave = (ev) => {
-  if (!ev) return
-  const { object } = ev
-  if (object && object.userData.customColor) {
-    object.material.color.set('#' + object.userData.customColor)
-    delete object.userData.customColor
-  }
-}
+// const onPointerLeave = (ev) => {
+//   if (!ev) return
+//   const { object } = ev
+//   if (object && object.userData.customColor) {
+//     object.material.color.set('#' + object.userData.customColor)
+//     delete object.userData.customColor
+//   }
+// }
 
 
 

@@ -36,10 +36,10 @@
 
     <div v-if="targetData.type=='GLTFModel' || currentMesh">
       <template v-if="currentModel">
-        <n-button  @click="submitEditModel">
+        <n-button :loading="loading" @click="submitEditModel">
           保存
         </n-button>
-        <n-button class="go-ml-2" @click="cancelEditModel">
+        <n-button :loading="loading" class="go-ml-2" @click="cancelEditModel">
           取消编辑
         </n-button>
       </template>
@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed,shallowRef,watch } from 'vue'
+import { computed,shallowRef,watch ,ref} from 'vue'
 import { NameSetting,NameSetting2, PositionSetting, SizeSetting, StylesSetting } from '@/components/Pages/ChartItemSetting'
 import { useTargetData } from '../hooks/useTargetData.hook'
 import MeshConfig from '@/packages/components/Graphic/Model/Mesh/config.vue'
@@ -63,6 +63,7 @@ const { targetData, chartEditStore } = useTargetData()
 const getModeList = chartEditStore.getModelList
 const currentModel = computed(() => chartEditStore.getCurrentModel)
 const targetChart = chartEditStore.getTargetChart
+const loading = ref(false)
 const editModel = () => {
   chartEditStore.setCurrentModel(deepClone(targetData.value))
 }
@@ -310,6 +311,7 @@ const handleMaterialUpdate = (newMaterial: any) => {
 }
 const submitEditModel = () => {
   if (!currentModel.value?.id) return
+  loading.value = true
   // 更新模型列表
   chartEditStore.setModelList(currentModel.value.id, getModeList[currentModel.value.id])
   // 导出模型为GLTF并上传
@@ -317,10 +319,8 @@ const submitEditModel = () => {
   if (!model) return
   chartEditStore.setTargetSelectChart(currentModel.value.id)
   chartEditStore.setCurrentModel(undefined)
-   
   // 在导出前，处理自定义字段
   processModelForExport(model)
-  
   const exporter = new GLTFExporter()
   exporter.parse(
     model,
@@ -362,12 +362,14 @@ const submitEditModel = () => {
       } finally {
         // 清除当前编辑状态
         chartEditStore.setCurrentModel(undefined)
+        loading.value=false
       }
     },
     (error) => {
       console.error('导出GLTF模型出错:', error)
       // 清除当前编辑状态
       chartEditStore.setCurrentModel(undefined)
+      loading.value=false
     },
     { 
       binary: true,
