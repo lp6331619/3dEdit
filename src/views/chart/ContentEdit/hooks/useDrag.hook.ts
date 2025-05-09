@@ -79,6 +79,12 @@ export const TresCanvaClick = async (obj: any) => {
     if (currentModel.value) {
       // transformRef.value = item.el
       transformControlsState.enabled = false
+      onClickOutSide()
+      // 若此时按下了 CTRL, 表示多选
+      setTimeout(() => {
+        chartEditStore.setTargetSelectChart(e.object.uuid)
+      }, 100)
+      return
     } else {
       transformRef.value = item.el
       transformControlsState.enabled = true

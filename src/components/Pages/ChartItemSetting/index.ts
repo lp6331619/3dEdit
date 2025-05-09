@@ -10,6 +10,7 @@ import GlobalSettingPosition from './GlobalSettingPosition.vue'
 
 // 名称
 import NameSetting from './NameSetting.vue'
+import NameSetting2 from './NameSetting2.vue'
 // 方向
 import PositionSetting from './PositionSetting.vue'
 // 尺寸
@@ -28,6 +29,7 @@ export {
   GlobalSetting,
   GlobalSettingPosition,
   NameSetting,
+  NameSetting2,
   PositionSetting,
   SizeSetting,
   StylesSetting,

@@ -22,7 +22,11 @@ export const FontWeightObject = {
   [FontWeightEnum.BOLD]: 'bold'
 }
 
-export const option = {}
+export const option = {
+  dataset: '',
+  position: [0, 0, 0],
+  castShadow: true
+}
 
 export default class Config extends PublicConfigClass implements CreateComponentType {
   public key = ModelConfig.key

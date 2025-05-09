@@ -1,3 +1,2 @@
-import { ModelConfig } from './Mesh/index'
-
+import { ModelConfig } from './Model/index'
 export default [ModelConfig]

@@ -62,7 +62,7 @@ const themeColor = computed(() => {
 
 // 计算当前选中目标
 const select = computed(() => {
-  const id = props.componentData.id
+  const id = props.componentData.uuid
   return chartEditStore.getTargetChart.selectId.find((e: string) => e === id)
 })
 

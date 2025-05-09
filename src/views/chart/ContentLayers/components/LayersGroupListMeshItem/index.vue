@@ -30,18 +30,18 @@
     <n-collapse-transition :show="expend">
       <template v-for="(element) in groupList?.children" :key="element.uuid">
         <LayersGroupListMeshItem
-          v-if="element.type =='Object3D'"
+          v-if="element.type =='Object3D'||element.type =='Group'"
           :componentGroupData="element"
           :layer-mode="layerMode"
           @update:children="updateChildrenData($event)"
         />
         <LayersListMeshItem
           v-else
-          :key="element.id"
+          :key="element.uuid"
           :componentData="element"
           :layer-mode="layerMode"
           :isGroup="true"
-          @mousedown="mousedownHandle($event, element, componentGroupData.id)"
+          @mousedown="mousedownHandle($event, element, componentGroupData.uuid)"
           @mouseenter="mouseenterHandle(element)"
           @mouseleave="mouseleaveHandle(element)"
           @contextmenu="handleContextMenu($event, element, optionsHandle)"
@@ -203,20 +203,22 @@ const mousedownHandle = (
 ) => {
   e.preventDefault()
   e.stopPropagation()
-
   onClickOutSide()
   const idf = componentInstance.id || id
    //点击图层 选中组件开启变换控制器
   const itemRef = componentListRef.value.find((e: any) => e?.onlyId === idf)
   transformRef.value = itemRef 
   transformControlsState.enabled = true 
-  console.log(itemRef,11111)
-  chartEditStore.setTargetSelectChart(idf)
+  if(componentInstance.type=='Mesh'){
+    chartEditStore.setTargetSelectChart(componentInstance.uuid)
+  }else{
+    chartEditStore.setTargetSelectChart(idf)
+  }
 }
 
 // 公共进入事件
 const mouseenterHandle = (componentInstance: CreateComponentType | CreateComponentGroupType) => {
-  chartEditStore.setTargetHoverChart(componentInstance.id)
+  chartEditStore.setTargetHoverChart(componentInstance.uuid)
 }
 
 // 公共移出事件

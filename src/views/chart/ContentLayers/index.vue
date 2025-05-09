@@ -215,7 +215,6 @@ const mousedownHandle = (e: MouseEvent, item: CreateComponentType) => {
     }
     return
   }
-  console.log(itemRef,11111)
   chartEditStore.setTargetSelectChart(id)
 }
 

@@ -3,14 +3,14 @@
  * @version: 1.0
  * @Author: Teemor
  * @Date: 2024-11-26 10:46:57
- * @LastEditors: Teemor
- * @LastEditTime: 2024-12-09 17:51:06
+ * @LastEditors: Teemor 232957726@qq.com
+ * @LastEditTime: 2025-05-08 15:17:59
 -->
 <template>
-  <primitive v-if="modelGroup" :object="modelGroup" />
+  <primitive v-if="modelGroup"  :object="modelGroup" />
 </template>
 <script setup>
-import { ref, watch, onMounted, shallowRef } from 'vue'
+import { ref, watch, onMounted, shallowRef ,nextTick} from 'vue'
 import { Group, Mesh } from 'three'
 import { useGLTF } from '@tresjs/cientos'
 import { useTresContext, useRenderLoop } from '@tresjs/core'
@@ -26,7 +26,6 @@ const props = defineProps({
   styles: Object,
   data:Object
 })
-
 const modelGroup = shallowRef(null)
 const loadModel = async url => {
   const gltf = await useGLTF(url)
@@ -37,6 +36,10 @@ const loadModel = async url => {
   }
   // modelGroup.value.updateMatrixWorld()
 }
+
+
+//爆炸相关
+
 const distance = ref(1) //距离
 const speed = ref(3000) //时间
 const twGroup = new TWEEN.Group()

@@ -1,7 +1,7 @@
 <template>
-  <!-- <div style="width: 900px; max-height: 200px; overflow-y: auto">
-    {{ lookAt }}-- {{cameraPosition}}
-  </div> -->
+  <div style="width: 900px; max-height: 200px; overflow-y: auto">
+    {{ targetChart }}
+  </div>
   <div class="tres-canvas-container">
     <TresCanvas v-bind="canvasConfig" ref="TresCanvasRef" renderMode="on-demand">
       <!-- 轴 -->
@@ -143,6 +143,7 @@ const transformControlsState = chartEditStore.getTransformControlsState
 // 组件列表ref
 const componentListRef = chartEditStore.getComponentListRef
 
+const targetChart = chartEditStore.getTargetChart
 const emits = defineEmits(['click', 'rightClick'])
 const TresCanvasRef = shallowRef<any>()
 const cameraRefs = shallowRef<any>()
