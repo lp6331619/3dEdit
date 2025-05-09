@@ -184,88 +184,50 @@ watch(() => props.material, (newMaterial) => {
     materialConfig.metalness = newMaterial.metalness ?? 0
     materialConfig.roughness = newMaterial.roughness ?? 0.5
     
-    // 检查材质是否有mapUrl字段
+    // 获取贴图URL (按优先级依次尝试多个来源)
+    let textureUrl = null;
+    
+    // 1. 检查材质是否有mapUrl字段
     if (newMaterial.mapUrl) {
       console.log('从材质的mapUrl字段获取贴图URL:', newMaterial.mapUrl)
-      // 初始化文件列表，使用mapUrl的值
+      textureUrl = newMaterial.mapUrl;
+    }
+    // 2. 检查材质的userData中是否有mapUrl
+    else if (newMaterial.userData && newMaterial.userData.mapUrl) {
+      console.log('从材质的userData.mapUrl获取贴图URL:', newMaterial.userData.mapUrl)
+      textureUrl = newMaterial.userData.mapUrl;
+    }
+    // 3. 检查材质的map是否是Texture对象，并查找其userData中的url
+    else if (newMaterial.map && newMaterial.map.userData && newMaterial.map.userData.url) {
+      console.log('从材质的map.userData.url获取贴图URL:', newMaterial.map.userData.url)
+      textureUrl = newMaterial.map.userData.url;
+    }
+    // 4. 如果map是字符串形式的URL
+    else if (newMaterial.map && typeof newMaterial.map === 'string') {
+      console.log('从材质的map字段(字符串)获取贴图URL:', newMaterial.map)
+      textureUrl = newMaterial.map;
+    }
+    
+    // 如果找到了贴图URL
+    if (textureUrl) {
+      // 初始化文件列表，使用找到的URL
       fileList.value = [{
-        id: 'current',
+        id: 'current-texture',
         name: 'texture.png',
         status: 'finished',
-        url: newMaterial.mapUrl
+        url: textureUrl
       }]
       
       // 保存到缓存
       textureCache[uuid] = {
-        map: newMaterial.mapUrl
+        map: textureUrl
       }
-    }
-    // 检查缓存中是否有该mesh的贴图
-    else if (textureCache[uuid] && textureCache[uuid].map) {
-      console.log('从缓存中恢复贴图:', uuid, textureCache[uuid].map)
-      // 初始化文件列表，使用缓存中的贴图
-      fileList.value = [{
-        id: 'cached-texture',
-        name: 'texture.png',
-        status: 'finished',
-        url: textureCache[uuid].map
-      }]
       
-      // 如果材质没有贴图，应用缓存中的贴图
-      if (!newMaterial.map) {
-        console.log('应用缓存中的贴图到材质:', textureCache[uuid].map)
-        // 使用nextTick确保DOM更新后再应用贴图
-        nextTick(() => {
-          // 创建新的材质数据
-          const updatedMaterial = {
-            ...props.material,
-            map: textureCache[uuid].map,
-            mapUrl: textureCache[uuid].map  // 同时添加mapUrl字段
-          }
-          
-          // 通知父组件更新材质
-          emit('update:material', updatedMaterial)
-        })
-      }
+      console.log('成功恢复贴图URL:', textureUrl)
     } else {
-      // 初始化文件列表，使用material中的map
-      if (newMaterial.map) {
-        console.log('从材质中获取贴图:', typeof newMaterial.map === 'string' ? newMaterial.map : '(Texture对象)')
-        let textureUrl = ''
-        
-        // 如果map是字符串，直接使用
-        if (typeof newMaterial.map === 'string') {
-          textureUrl = newMaterial.map
-        } 
-        // 如果map是Texture对象，可能存储了源URL
-        else if (newMaterial.map.userData && newMaterial.map.userData.url) {
-          textureUrl = newMaterial.map.userData.url
-        }
-        // 如果没有源URL，使用mapUrl字段
-        else if (newMaterial.mapUrl) {
-          textureUrl = newMaterial.mapUrl
-        }
-        
-        if (textureUrl) {
-          fileList.value = [{
-            id: 'current',
-            name: 'texture.png',
-            status: 'finished',
-            url: textureUrl
-          }]
-          
-          // 保存到缓存
-          textureCache[uuid] = {
-            map: textureUrl
-          }
-        } else {
-          // 如果没有可用的URL，清空文件列表
-          fileList.value = []
-        }
-      } else {
-        // 没有贴图
-        fileList.value = []
-      }
+      // 没有找到贴图URL
+      console.log('未找到贴图URL')
+      fileList.value = []
     }
     
     // 文件对象不缓存，只在上传时使用
@@ -381,11 +343,20 @@ const applyTexture = async() => {
     // 创建新的材质数据
     const newMaterial = {
       ...props.material,
-      map: textureUrl, // 保持原有处理方式，map仍然存储URL
-      mapUrl: textureUrl // 额外添加mapUrl字段存储网络图片地址
+      map: textureUrl,        // 原始map字段保持字符串URL
+      mapUrl: textureUrl      // 额外添加mapUrl字段存储网络图片地址
+    } as any;
+    
+    // 确保userData存在
+    if (!newMaterial.userData) {
+      newMaterial.userData = {};
     }
     
-    // 通知父组件更新材质
+    // 保存到userData
+    newMaterial.userData.mapUrl = textureUrl;
+    
+    // 通知父组件更新材质，父组件将处理userData
+    console.log('贴图URL已设置:', textureUrl)
     emit('update:material', newMaterial)
   } catch (error) {
     console.error('贴图上传失败:', error)

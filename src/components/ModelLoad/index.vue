@@ -46,14 +46,58 @@ const loadModel = async url => {
       // 设置当前模型
       modelGroup.value = gltf.scene
       
+      // 尝试从模型中获取贴图配置信息
+      let extractedConfig = props.config || {}
+      
+      // 如果模型是从我们的应用导出的，尝试从extras中提取贴图配置
+      if (gltf.parser && gltf.parser.json && gltf.parser.json.extras) {
+        console.log('检测到模型中包含额外配置数据:', gltf.parser.json.extras)
+        
+        // 提取贴图和材质配置
+        if (gltf.parser.json.extras.textures) {
+          extractedConfig.textures = gltf.parser.json.extras.textures
+          console.log('提取贴图配置:', extractedConfig.textures)
+        }
+        
+        if (gltf.parser.json.extras.materials) {
+          extractedConfig.materials = gltf.parser.json.extras.materials
+          console.log('提取材质配置:', extractedConfig.materials)
+        }
+        
+        // 合并其他配置
+        if (gltf.parser.json.extras.modelConfig) {
+          extractedConfig = {
+            ...extractedConfig,
+            ...gltf.parser.json.extras.modelConfig
+          }
+          console.log('合并模型配置:', gltf.parser.json.extras.modelConfig)
+        }
+        
+        // 提取贴图URL列表
+        if (gltf.parser.json.extras.textureURLs) {
+          if (!extractedConfig.textures) extractedConfig.textures = {}
+          
+          // 将贴图URL列表合并到配置中
+          Object.keys(gltf.parser.json.extras.textureURLs).forEach(uuid => {
+            const url = gltf.parser.json.extras.textureURLs[uuid]
+            if (!extractedConfig.textures[uuid]) extractedConfig.textures[uuid] = {}
+            extractedConfig.textures[uuid].mapUrl = url
+            console.log(`从模型中恢复贴图URL:`, uuid, url)
+          })
+        }
+      }
+      
       // 将模型存储到全局状态
       chartEditStore.setModelList(props.data.id, modelGroup.value)
       console.log(getModelList, '模型文件')
       
-      // 应用配置
-      if (props.config) {
-        updateModelWithConfig(props.config)
+      // 应用配置（优先使用提取的配置）
+      const configToApply = {
+        ...extractedConfig,
+        ...props.config
       }
+      
+      updateModelWithConfig(configToApply)
     }
   } catch (error) {
     console.error('加载模型失败:', error)
@@ -169,6 +213,16 @@ const updateModelWithConfig = (config) => {
                 texture.userData = texture.userData || {}
                 texture.userData.url = textureUrl
                 
+                // 确保材质有userData对象
+                if (child.material) {
+                  // 确保材质有userData属性
+                  if (!child.material.userData) {
+                    child.material.userData = {};
+                  }
+                  // 保存贴图URL到材质的userData中
+                  child.material.userData.mapUrl = textureUrl;
+                }
+                
                 texture.needsUpdate = true
                 
                 // 应用贴图到材质
@@ -220,7 +274,17 @@ const updateModelWithConfig = (config) => {
                   const canvasTexture = new THREE.Texture(img)
                   
                   // 保存URL到userData
-                  canvasTexture.userData = { url: textureUrl }
+                  canvasTexture.userData = canvasTexture.userData || { url: textureUrl }
+                  
+                  // 确保材质有userData对象
+                  if (child.material && !child.material.userData) {
+                    child.material.userData = {};
+                  }
+                  
+                  // 如果材质存在，保存贴图URL到材质的userData
+                  if (child.material) {
+                    child.material.userData.mapUrl = textureUrl;
+                  }
                   
                   canvasTexture.needsUpdate = true
                   
@@ -281,13 +345,14 @@ const updateModelWithConfig = (config) => {
         }
         
         // 3. 如果仍然没有找到，但有map字段，则使用map
-        if (!baseTextureUrl && typeof child.material.map === 'string') {
+        if (!baseTextureUrl && child.material && typeof child.material.map === 'string') {
           baseTextureUrl = child.material.map
           console.log('使用材质的map字段作为URL:', baseTextureUrl)
         }
         
         // 4. 如果mesh材质已有map贴图且有userData.url，使用它
-        if (!baseTextureUrl && child.material.map && child.material.map.userData && child.material.map.userData.url) {
+        if (!baseTextureUrl && child.material && child.material.map && 
+            child.material.map.userData && child.material.map.userData.url) {
           baseTextureUrl = child.material.map.userData.url
           console.log('从材质的map.userData中获取URL:', baseTextureUrl)
         }

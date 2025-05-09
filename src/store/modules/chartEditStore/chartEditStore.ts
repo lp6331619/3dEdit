@@ -617,7 +617,11 @@ export const useChartEditStore = defineStore({
       })
     },
     //设置属性全覆盖
-    setComponentListAll(d: String, newData: CreateComponentType | CreateComponentGroupType, key: string = 'option') {
+    setComponentListAll(
+      d: String,
+      newData: CreateComponentType | CreateComponentGroupType | string,
+      key: string = 'option'
+    ) {
       let id = d
       // if(id==undefined){
       // id = this.getTargetChart()

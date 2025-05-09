@@ -54,8 +54,6 @@
             :config="subMesh.option"
             @context-menu="fitToBox($event, subMesh, index)"
             @pointer-down="!isPreview &&clickMesh($event, subMesh, index,true)"
-            @pointer-enter="onPointerEnter($event)"
-            @pointer-leave="onPointerLeave($event)"
           />
           <!-- @pointer-down="clickMesh($event, subMesh, index)" -->
           <!-- <GLTFModel
@@ -210,31 +208,6 @@ onLoop(({ delta, elapsed }) => {
   // updateEvents(elapsed * 1000, delta * 1000)
 })
 onAfterLoop((res) => {})
-// 在 item.vue 中
-// const onPointerEnter = (ev) => {
-//   if (!ev) return
-//   const { object } = ev
-//   if(!currentModel.value) return 
-//   // 只在 customColor 不存在时保存
-//   if (object && !object.userData.customColor) {
-//     object.userData.customColor = object.material.color.getHexString()
-//   }
-//   object.material.color.set('#DFFF45')
-//   object.material = object.material.clone()
-// }
-
-// const onPointerLeave = (ev) => {
-//   if (!ev) return
-//   const { object } = ev
-//   if (object && object.userData.customColor) {
-//     object.material.color.set('#' + object.userData.customColor)
-//     delete object.userData.customColor
-//   }
-// }
-
-
-
-// 定期检查是否需要刷新贴图
 onMounted(() => {
  
 });

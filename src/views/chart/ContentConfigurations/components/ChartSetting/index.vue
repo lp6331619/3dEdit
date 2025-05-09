@@ -149,20 +149,30 @@ const handleMaterialUpdate = (newMaterial: any) => {
       currentMesh.value.material.roughness = newMaterial.roughness
     }
     
-    // 处理贴图
+    // 处理贴图 - 这部分是关键的改进区域
     if (newMaterial.map) {
       console.log(`处理贴图:`, typeof newMaterial.map === 'string' ? newMaterial.map : '(Texture对象)')
       
-      // 如果map是字符串URL
-      if (typeof newMaterial.map === 'string') {
-        // 保存URL到模型配置
-        if (newMaterial.mapUrl) {
-          // 优先使用mapUrl字段作为存储URL
-          currentModel.value.option.textures[meshUUID].mapUrl = newMaterial.mapUrl
-        } else {
-          // 如果没有mapUrl，使用map字段的值
-          currentModel.value.option.textures[meshUUID].mapUrl = newMaterial.map
+      // 保存URL到各个位置
+      const textureUrl = typeof newMaterial.map === 'string' ? 
+                          newMaterial.map : 
+                          (newMaterial.mapUrl || '');
+      
+      if (textureUrl) {
+        // 保存到配置中
+        // 确保textures[meshUUID]存在
+        if (!currentModel.value.option.textures[meshUUID]) {
+          currentModel.value.option.textures[meshUUID] = {};
         }
+        currentModel.value.option.textures[meshUUID].mapUrl = textureUrl;
+        
+        // 确保materials[meshUUID]存在
+        if (!currentModel.value.option.materials[meshUUID]) {
+          currentModel.value.option.materials[meshUUID] = {};
+        }
+        currentModel.value.option.materials[meshUUID].mapUrl = textureUrl;
+        
+        console.log(`保存贴图URL到配置:`, meshUUID, textureUrl);
         
         // 加载贴图
         const applyTexture = (url: string) => {
@@ -185,9 +195,17 @@ const handleMaterialUpdate = (newMaterial: any) => {
               texture.userData = texture.userData || {}
               texture.userData.url = url
               
+              // 保存到材质的userData
+              if (!currentMesh.value.material.userData) {
+                currentMesh.value.material.userData = {};
+              }
+              currentMesh.value.material.userData.mapUrl = url;
+              
               // 应用纹理到材质
               currentMesh.value.material.map = texture
               currentMesh.value.material.needsUpdate = true
+              
+              console.log('贴图已应用并保存到各个位置');
             },
             undefined,
             (error) => {
@@ -211,6 +229,12 @@ const handleMaterialUpdate = (newMaterial: any) => {
             // 保存URL到texture的userData
             texture.userData = texture.userData || {}
             texture.userData.url = url
+            
+            // 保存到材质的userData
+            if (!currentMesh.value.material.userData) {
+              currentMesh.value.material.userData = {};
+            }
+            currentMesh.value.material.userData.mapUrl = url;
             
             texture.needsUpdate = true
             
@@ -247,25 +271,7 @@ const handleMaterialUpdate = (newMaterial: any) => {
         }
         
         // 执行贴图加载
-        const textureUrl = newMaterial.mapUrl || newMaterial.map
         applyTexture(textureUrl)
-      } 
-      // 如果map已经是Texture对象，直接使用
-      else {
-        console.log('直接使用已创建的Texture对象')
-        
-        // 如果同时有mapUrl，保存到配置和texture的userData
-        if (newMaterial.mapUrl) {
-          currentModel.value.option.textures[meshUUID].mapUrl = newMaterial.mapUrl
-          
-          // 保存URL到texture的userData以便日后恢复
-          newMaterial.map.userData = newMaterial.map.userData || {}
-          newMaterial.map.userData.url = newMaterial.mapUrl
-        }
-        
-        // 直接应用texture
-        currentMesh.value.material.map = newMaterial.map
-        currentMesh.value.material.needsUpdate = true
       }
     } else if (currentMesh.value.material.map) {
       // 如果要移除贴图
@@ -276,6 +282,16 @@ const handleMaterialUpdate = (newMaterial: any) => {
       if (currentModel.value.option.textures[meshUUID]) {
         delete currentModel.value.option.textures[meshUUID].mapUrl
       }
+      if (currentModel.value.option.materials[meshUUID]) {
+        delete currentModel.value.option.materials[meshUUID].mapUrl
+      }
+      
+      // 从材质的userData中移除
+      if (currentMesh.value.material.userData) {
+        delete currentMesh.value.material.userData.mapUrl;
+      }
+      
+      console.log('已移除贴图');
     }
   }
   
@@ -290,10 +306,22 @@ const handleMaterialUpdate = (newMaterial: any) => {
   
   // 保存mapUrl到材质配置
   if (newMaterial.mapUrl) {
+    // 确保materials[meshUUID]存在
+    if (!currentModel.value.option.materials[meshUUID]) {
+      currentModel.value.option.materials[meshUUID] = {};
+    }
     currentModel.value.option.materials[meshUUID].mapUrl = newMaterial.mapUrl
   } else if (typeof newMaterial.map === 'string') {
+    // 确保materials[meshUUID]存在
+    if (!currentModel.value.option.materials[meshUUID]) {
+      currentModel.value.option.materials[meshUUID] = {};
+    }
     currentModel.value.option.materials[meshUUID].mapUrl = newMaterial.map
   } else if (newMaterial.map && newMaterial.map.userData && newMaterial.map.userData.url) {
+    // 确保materials[meshUUID]存在
+    if (!currentModel.value.option.materials[meshUUID]) {
+      currentModel.value.option.materials[meshUUID] = {};
+    }
     currentModel.value.option.materials[meshUUID].mapUrl = newMaterial.map.userData.url
   }
   
@@ -321,6 +349,15 @@ const submitEditModel = () => {
   chartEditStore.setCurrentModel(undefined)
   // 在导出前，处理自定义字段
   processModelForExport(model)
+  
+  // 创建额外的导出数据，确保贴图信息不会丢失
+  const exportData = {
+    model: model,
+    textures: currentModel.value?.option?.textures || {},
+    materials: currentModel.value?.option?.materials || {},
+    option: currentModel.value?.option || {}
+  }
+  
   const exporter = new GLTFExporter()
   exporter.parse(
     model,
@@ -331,9 +368,13 @@ const submitEditModel = () => {
         if (gltf instanceof ArrayBuffer) {
           blob = new Blob([gltf], { type: 'application/octet-stream' })
         } else {
-          // 处理JSON格式，确保mapUrl字段存在
+          // 处理JSON格式，确保贴图URL等配置信息存在
           if (!gltf.extras) gltf.extras = {}
-          gltf.extras.modelConfig = currentModel.value.option
+          
+          // 保存完整的材质和贴图信息
+          gltf.extras.modelConfig = currentModel.value?.option || {}
+          gltf.extras.textures = exportData.textures
+          gltf.extras.materials = exportData.materials
           
           const output = JSON.stringify(gltf)
           blob = new Blob([output], { type: 'application/json' })
@@ -350,12 +391,15 @@ const submitEditModel = () => {
           console.error('模型上传失败: 未获取到URL')
           return
         }
-        
         const modelUrl = res.data
         console.log('模型上传成功, 文件URL:', modelUrl)
-        // 更新组件配置
-        const [f]= targetChart.selectId
-        chartEditStore.setComponentListAll(f,modelUrl,'meshConfig')
+        
+        // 获取当前选中的组件ID
+        const [f] = targetChart.selectId
+        
+        // 直接设置meshConfig属性为字符串URL值
+        // @ts-ignore - 忽略类型检查，因为我们确定这个操作是有效的
+        chartEditStore.setComponentListAll(f, modelUrl, 'meshConfig')
 
       } catch (error) {
         console.error('模型上传失败:', error)
@@ -383,28 +427,133 @@ const submitEditModel = () => {
 
 // 处理模型，确保自定义字段可以被导出
 const processModelForExport = (model: any) => {
+  // 确保模型配置中有textures和materials字段
+  if (!currentModel.value) return;
+  
+  if (!currentModel.value.option) {
+    currentModel.value.option = {};
+  }
+  
+  if (!currentModel.value.option.textures) {
+    currentModel.value.option.textures = {};
+  }
+  
+  if (!currentModel.value.option.materials) {
+    currentModel.value.option.materials = {};
+  }
+  
+  // 保存所有mesh的贴图URL列表，在模型根节点上
+  if (!model.userData) model.userData = {};
+  if (!model.userData.textureURLs) model.userData.textureURLs = {};
+  
+  // 遍历模型的所有元素
   model.traverse((object: any) => {
     // 如果是Mesh对象且有材质
     if (object.isMesh && object.material) {
       // 获取材质
-      const material = object.material
+      const material = object.material;
       
-      // 当前模型的配置
-      const meshConfig = currentModel.value?.option?.materials?.[object.uuid]
-      
-      // 如果有mapUrl字段，添加到userData中确保导出
-      if (meshConfig && meshConfig.mapUrl) {
-        if (!material.userData) material.userData = {}
-        material.userData.mapUrl = meshConfig.mapUrl
-        
-        // 同时添加到对象的userData以确保导出
-        if (!object.userData) object.userData = {}
-        object.userData.materialMapUrl = meshConfig.mapUrl
-        
-        console.log(`为对象添加mapUrl到userData:`, object.uuid, meshConfig.mapUrl)
+      // 确保object.uuid在配置中有对应项
+      if (!currentModel.value.option.textures[object.uuid]) {
+        currentModel.value.option.textures[object.uuid] = {};
       }
+      
+      if (!currentModel.value.option.materials[object.uuid]) {
+        currentModel.value.option.materials[object.uuid] = {
+          color: material.color ? material.color.getStyle() : '#ffffff',
+          opacity: material.opacity || 1,
+          transparent: material.transparent || false
+        };
+        
+        // 保存金属度和粗糙度（如果有）
+        if ('metalness' in material) {
+          currentModel.value.option.materials[object.uuid].metalness = material.metalness;
+        }
+        
+        if ('roughness' in material) {
+          currentModel.value.option.materials[object.uuid].roughness = material.roughness;
+        }
+      }
+      
+      // 处理贴图URL
+      let textureURL = '';
+      
+      // 1. 检查材质中是否有map和mapUrl
+      if (material.map) {
+        // 如果map是Texture对象且包含userData.url
+        if (material.map.userData && material.map.userData.url) {
+          textureURL = material.map.userData.url;
+          console.log(`从材质的map.userData保存mapUrl:`, object.uuid, textureURL);
+        }
+      }
+      
+      // 2. 从材质的userData中获取mapUrl
+      if (!textureURL && material.userData && material.userData.mapUrl) {
+        textureURL = material.userData.mapUrl;
+        console.log(`从材质的userData保存mapUrl:`, object.uuid, textureURL);
+      }
+      
+      // 3. 从对象的userData中获取materialMapUrl
+      if (!textureURL && object.userData && object.userData.materialMapUrl) {
+        textureURL = object.userData.materialMapUrl;
+        console.log(`从对象的userData保存mapUrl:`, object.uuid, textureURL);
+      }
+      
+      // 4. 从模型配置中获取mapUrl
+      if (!textureURL && currentModel.value.option.materials[object.uuid] && 
+          currentModel.value.option.materials[object.uuid].mapUrl) {
+        textureURL = currentModel.value.option.materials[object.uuid].mapUrl;
+        console.log(`从模型配置保存mapUrl:`, object.uuid, textureURL);
+      }
+      
+      if (textureURL) {
+        // 保存到所有需要的地方
+        if (!currentModel.value.option.textures[object.uuid]) {
+          currentModel.value.option.textures[object.uuid] = {};
+        }
+        currentModel.value.option.textures[object.uuid].mapUrl = textureURL;
+        
+        if (!currentModel.value.option.materials[object.uuid]) {
+          currentModel.value.option.materials[object.uuid] = {};
+        }
+        currentModel.value.option.materials[object.uuid].mapUrl = textureURL;
+        
+        // 保存到材质的userData
+        if (!material.userData) material.userData = {};
+        material.userData.mapUrl = textureURL;
+        
+        // 保存到对象的userData
+        if (!object.userData) object.userData = {};
+        object.userData.materialMapUrl = textureURL;
+        
+        // 保存到模型根节点的统一列表中
+        model.userData.textureURLs[object.uuid] = textureURL;
+        
+        console.log(`为对象添加贴图URL到所有位置:`, object.uuid, textureURL);
+      }
+      
+      // 获取当前模型的配置
+      const meshConfig = currentModel.value.option.materials[object.uuid];
+      
+      // 将所有配置信息保存到userData中确保导出
+      if (!material.userData) material.userData = {};
+      if (!object.userData) object.userData = {};
+      
+      // 复制所有材质属性到userData
+      Object.assign(material.userData, meshConfig);
+      
+      // 将材质属性也复制到对象的userData中，确保不会丢失
+      object.userData.material = { ...meshConfig };
     }
-  })
+  });
+  
+  // 将整个配置保存到根节点
+  if (!model.userData) model.userData = {};
+  model.userData.fullConfig = currentModel.value.option;
+  model.userData.textures = currentModel.value.option.textures;
+  model.userData.materials = currentModel.value.option.materials;
+  
+  console.log('导出前的完整配置:', currentModel.value.option);
 }
 </script>
 
