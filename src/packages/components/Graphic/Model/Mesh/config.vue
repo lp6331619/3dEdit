@@ -67,8 +67,8 @@
         <div class="texture-preview-container" v-if="fileList.length > 0 && fileList[0].url">
           <img class="texture-preview-image" :src="fileList[0].url" alt="贴图预览" />
           <div class="texture-actions">
-            <n-button size="small" @click="clearImg">移除</n-button>
-            <n-button size="small" @click="handlePreviewTexture(fileList[0].url)">预览</n-button>
+            <n-button size="small" type="error" @click="clearImg">移除</n-button>
+            <n-button size="small" type="primary" @click="handlePreviewTexture(fileList[0].url)">预览</n-button>
           </div>
         </div>
         <n-upload
@@ -88,7 +88,7 @@
     </setting-item-box>
     
     <setting-item-box name="">
-      <n-button @click="applyTexture" :disabled="!files">应用贴图</n-button>
+      <n-button type="primary" @click="applyTexture" :disabled="!files">应用贴图</n-button>
     </setting-item-box>
   </collapse-item>
 </template>
@@ -476,6 +476,11 @@ const handlePreviewTexture = (url: string) => {
   justify-content: space-between;
   padding: 8px;
   background: #f5f5f5;
+}
+
+.texture-actions .n-button {
+  min-width: 60px;
+  font-weight: bold;
 }
 </style>
 

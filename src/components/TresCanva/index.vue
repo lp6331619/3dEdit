@@ -59,7 +59,6 @@
         @dragging="ControlsStateMouseDown"
       />
       <Stats v-if="canvasConfig.isFps" />
-      <!-- <Effect :EffectComposer="effectComposer" :outlinePassList="outlinePassList" :layers="layers"></Effect> -->
     </TresCanvas>
   </div>
 </template>
@@ -122,6 +121,7 @@ import lodash from 'lodash'
 const ModelLoad = defineAsyncComponent(() => import('@/components/ModelLoad/index.vue'))
 // const Effect = defineAsyncComponent(() => import('./effect.vue'))
 const tresItem = defineAsyncComponent(() => import('./item.vue'))
+
 const props = defineProps({
   isPreview: {
     type: Boolean,

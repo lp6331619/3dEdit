@@ -1,8 +1,8 @@
 <!--
  * @Author: sorry 247076126@qq.com
  * @Date: 2024-11-05 15:00:07
- * @LastEditors: sorry 247076126@qq.com
- * @LastEditTime: 2024-11-16 17:24:29
+ * @LastEditors: Teemor 232957726@qq.com
+ * @LastEditTime: 2025-05-09 17:30:30
  * @FilePath: \3DThreeEdit\src\packages\components\Graphic\Geometry\BoxGeometry\config.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -151,7 +151,7 @@
               size="small"
               @update:value="updateTransform"
             />
-          </setting-item>
+    </setting-item>
           <setting-item name="缩放 Y">
             <n-input-number
               v-model:value="transformConfig.scale.y"
@@ -159,7 +159,7 @@
               size="small"
               @update:value="updateTransform"
             />
-          </setting-item>
+    </setting-item>
           <setting-item name="缩放 Z">
             <n-input-number
               v-model:value="transformConfig.scale.z"
@@ -167,13 +167,10 @@
               size="small"
               @update:value="updateTransform"
             />
-          </setting-item>
+    </setting-item>
         </n-tab-pane>
       </n-tabs>
-    </setting-item-box>
-  </div>
-  <div v-else>
-    <n-empty description="请先选择一个模型元素" />
+  </setting-item-box> 
   </div>
 </template>
 
