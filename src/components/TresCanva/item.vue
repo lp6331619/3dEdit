@@ -52,6 +52,7 @@
             :url="subMesh.meshConfig"
             :styles="subMesh.styles"
             :data="subMesh"
+            :config="subMesh.option"
             @context-menu="fitToBox($event, subMesh, index)"
             @pointer-down="!isPreview &&clickMesh($event, subMesh, index,true)"
             @pointer-enter="onPointerEnter($event)"
