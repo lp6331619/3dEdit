@@ -63,13 +63,9 @@ const loadModel = async url => {
 // 根据配置更新模型
 const updateModelWithConfig = (config) => {
   if (!modelGroup.value) return
-  
-  console.log('应用模型配置:', config)
-  
   // 遍历模型的所有元素
   modelGroup.value.traverse((child) => {
     if (child.isMesh) {
-      console.log('处理Mesh:', child.uuid)
       
       // 应用材质配置
       if (config.materials && config.materials[child.uuid]) {

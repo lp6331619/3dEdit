@@ -58,6 +58,7 @@ import MeshConfig from '@/packages/components/Graphic/Model/Mesh/config.vue'
 import { deepClone } from '@/utils'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import * as THREE from 'three'
+import { storedFileUploadFile } from 'swagger-api/export-api/scada-config'
 const { targetData, chartEditStore } = useTargetData()
 const getModeList = chartEditStore.getModelList
 const currentModel = computed(() => chartEditStore.getCurrentModel)
@@ -89,7 +90,6 @@ watch(selectId, (e) => {
   const [f] = e
   const mesh = findByUUID(obj, f)
   currentMesh.value = mesh
-  console.log(mesh, 1111)
 }, {
   immediate: true
 })
@@ -312,64 +312,62 @@ const submitEditModel = () => {
   if (!currentModel.value?.id) return
   // 更新模型列表
   chartEditStore.setModelList(currentModel.value.id, getModeList[currentModel.value.id])
-  
-  // 更新组件列表
-  // 使用类型断言处理 targetChart
-  const targetChartAny = targetChart as any;
-  if (targetChartAny && targetChartAny.componentList) {
-    const index = targetChartAny.componentList.findIndex((item: any) => item.id === currentModel.value.id)
-    if (index !== -1) {
-      targetChartAny.componentList[index] = {
-        ...targetChartAny.componentList[index],
-        option: currentModel.value.option
-      }
-    }
-  } else {
-    console.warn('无法更新组件列表: componentList 不存在')
-  }
-  
-  // 导出模型为GLTF
-  exportToGLTF(getModeList[currentModel.value.id])
-  
-  // 清除当前编辑状态
-  chartEditStore.setCurrentModel(undefined)
-}
-
-// 导出GLTF模型
-const exportToGLTF = (model: any) => {
+  // 导出模型为GLTF并上传
+  const model = getModeList[currentModel.value.id]
   if (!model) return
-  const exporter = new GLTFExporter()
-  
+  chartEditStore.setTargetSelectChart(currentModel.value.id)
+  chartEditStore.setCurrentModel(undefined)
+   
   // 在导出前，处理自定义字段
   processModelForExport(model)
   
-  // 导出模型
+  const exporter = new GLTFExporter()
   exporter.parse(
     model,
-    (gltf: ArrayBuffer | { [key: string]: any }) => {
-      // 将导出的模型数据保存为文件
-      if (gltf instanceof ArrayBuffer) {
-        const blob = new Blob([gltf], { type: 'application/octet-stream' })
-        const link = document.createElement('a')
-        link.href = URL.createObjectURL(blob)
-        link.download = `model_${Date.now()}.glb` // 使用.glb作为二进制格式
-        link.click()
-        URL.revokeObjectURL(link.href)
-      } else {
-        // 处理JSON格式，确保mapUrl字段存在
-        addCustomPropertiesToJSON(gltf)
+    async (gltf: ArrayBuffer | { [key: string]: any }) => {
+      try {
+        // 将导出的模型转换为Blob对象
+        let blob;
+        if (gltf instanceof ArrayBuffer) {
+          blob = new Blob([gltf], { type: 'application/octet-stream' })
+        } else {
+          // 处理JSON格式，确保mapUrl字段存在
+          if (!gltf.extras) gltf.extras = {}
+          gltf.extras.modelConfig = currentModel.value.option
+          
+          const output = JSON.stringify(gltf)
+          blob = new Blob([output], { type: 'application/json' })
+        }
         
-        const output = JSON.stringify(gltf);
-        const blob = new Blob([output], { type: 'application/json' })
-        const link = document.createElement('a')
-        link.href = URL.createObjectURL(blob)
-        link.download = `model_${Date.now()}.gltf` // 使用.gltf作为JSON格式
-        link.click()
-        URL.revokeObjectURL(link.href)
+        // 创建File对象用于上传
+        const file = new File([blob], `model_${Date.now()}.glb`, { type: blob.type })
+        
+        // 上传文件到服务器
+        console.log('开始上传模型文件到服务器')
+        const res = await storedFileUploadFile({file: file})
+        
+        if (!res.data) {
+          console.error('模型上传失败: 未获取到URL')
+          return
+        }
+        
+        const modelUrl = res.data
+        console.log('模型上传成功, 文件URL:', modelUrl)
+        // 更新组件配置
+        const [f]= targetChart.selectId
+        chartEditStore.setComponentListAll(f,modelUrl,'meshConfig')
+
+      } catch (error) {
+        console.error('模型上传失败:', error)
+      } finally {
+        // 清除当前编辑状态
+        chartEditStore.setCurrentModel(undefined)
       }
     },
     (error) => {
       console.error('导出GLTF模型出错:', error)
+      // 清除当前编辑状态
+      chartEditStore.setCurrentModel(undefined)
     },
     { 
       binary: true,
@@ -405,18 +403,6 @@ const processModelForExport = (model: any) => {
       }
     }
   })
-}
-
-// 处理JSON数据，添加自定义属性
-const addCustomPropertiesToJSON = (gltfJson: any) => {
-  // 如果导出格式是JSON，检查并添加自定义字段
-  if (typeof gltfJson === 'object' && currentModel.value?.option) {
-    // 添加模型配置到extras字段
-    if (!gltfJson.extras) gltfJson.extras = {}
-    gltfJson.extras.modelConfig = currentModel.value.option
-    
-    console.log('将模型配置添加到GLTF的extras字段:', currentModel.value.option)
-  }
 }
 </script>
 
