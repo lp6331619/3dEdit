@@ -220,6 +220,56 @@ const loadModel = async (url) => {
             return
           }
           
+          console.log('原始加载模型结构:', model);
+          
+          // 检查模型层级结构并修复空的Object3D问题
+          const fixEmptyObject3D = (parent) => {
+            if (!parent || !parent.children) return false;
+            
+            let hasFixed = false;
+            
+            // 先处理子对象，深度优先
+            for (let i = 0; i < parent.children.length; i++) {
+              if (fixEmptyObject3D(parent.children[i])) {
+                hasFixed = true;
+              }
+            }
+            
+            // 检查是否存在Object3D层级且children为空的情况
+            for (let i = 0; i < parent.children.length; i++) {
+              const child = parent.children[i];
+              
+              // 判断是否是Object3D且children为空数组，且不是关键元素
+              if (child.type === 'Object3D' && 
+                  Array.isArray(child.children) && 
+                  child.children.length === 0 &&
+                  !child.isMesh) {
+                
+                console.warn('检测到空的Object3D对象，将被移除:', child.uuid);
+                parent.remove(child);
+                i--; // 由于删除了元素，索引需要回退
+                hasFixed = true;
+              }
+            }
+            
+            return hasFixed;
+          };
+          
+          // 执行修复
+          if (fixEmptyObject3D(model)) {
+            console.log('已修复空的Object3D对象');
+          }
+          
+          // 检查模型是否为空模型 (children数组为空)
+          if (!model.children || model.children.length === 0) {
+            console.warn('加载的模型children数组为空，这可能导致问题')
+            // 添加一个占位符子对象，防止后续处理失败
+            const placeholderGroup = new THREE.Group()
+            placeholderGroup.name = "PlaceholderForEmptyModel"
+            model.add(placeholderGroup)
+            message.warning('加载的模型结构可能异常，已添加占位元素防止问题')
+          }
+          
           // 清理可能存在的AuxScene图层
           cleanupAuxScenes(model)
           
@@ -369,6 +419,7 @@ const loadModel = async (url) => {
         // 使用naive-ui的message来展示加载进度，只显示一个信息，不断更新它
         const l = Math.floor((xhr.loaded / xhr.total) * 100)
         if (!messageBox.loadingInstance) {
+          if(l==100)return
           messageBox.loadingInstance = message.loading(
             `模型加载进度: ${l}%`,
             { duration: 0 }
@@ -869,26 +920,104 @@ onLoop(({ delta }) => {
 
 // 清理AuxScene图层
 const cleanupAuxScenes = (model) => {
-  // 查找并列出所有的AuxScene图层
-  const auxScenes = [];
+  // 查找并列出所有的AuxScene图层和其他辅助对象
+  const objectsToRemove = [];
   
+  // 首先检查特殊情况：第一层只有一个无名组，里面再包含AuxScene和实际内容
+  // 这通常是之前导出模型时产生的多余嵌套
+  if (model.children.length === 1 && 
+      model.children[0].type === 'Group' && 
+      (!model.children[0].name || model.children[0].name === '')) {
+    
+    console.log('检测到导入模型可能有嵌套问题:');
+    
+    // 检查内部子对象
+    const innerGroup = model.children[0];
+    let hasAuxScene = false;
+    
+    // 扫描查找是否有典型的AuxScene
+    innerGroup.traverse(obj => {
+      if (obj.name && obj.name.includes('AuxScene')) {
+        hasAuxScene = true;
+      }
+    });
+    
+    if (hasAuxScene) {
+      console.log('确认存在典型的AuxScene嵌套问题，将进行修复');
+      
+      // 收集所有非AuxScene的子对象
+      const validChildren = [];
+      innerGroup.children.forEach(child => {
+        if (!(child.name && child.name.includes('AuxScene'))) {
+          validChildren.push(child);
+        }
+      });
+      
+      if (validChildren.length > 0) {
+        console.log(`找到${validChildren.length}个有效子对象，将替换当前结构`);
+        
+        // 移除无名组
+        model.remove(innerGroup);
+        
+        // 添加有效子对象到模型根节点
+        validChildren.forEach(child => {
+          innerGroup.remove(child);
+          model.add(child);
+        });
+        
+        console.log('导入模型结构已修复');
+        
+        // 已经处理了特殊情况，可以返回了
+        return;
+      }
+    }
+  }
+  
+  // 执行常规的清理过程
   model.traverse(function(object) {
-    // 检查对象名称是否包含AuxScene
-    if (object.name && object.name.includes('AuxScene') && object !== model) {
-      auxScenes.push(object);
+    // 检查是否是辅助对象
+    const shouldRemove = (
+      // AuxScene或CleanedModel对象
+      (object.name && (object.name.includes('AuxScene') || object.name.includes('CleanedModel'))) ||
+      // 标记为临时占位的对象
+      (object.name && object.name.includes('Placeholder') && object !== model) ||
+      // 空容器对象 - 没有mesh子对象也没有任何特性的空组
+      (object.type === 'Group' && 
+       object.children.length === 0 && 
+       object !== model &&
+       !object.name) ||
+      // 轮廓线对象
+      (object.isOutline || 
+       (object.userData && (object.userData.isOutline || object.userData.isSelectionEffect)) ||
+       (object.type === 'LineSegments' && object.material && 
+        object.material.type === 'LineBasicMaterial' && 
+        object.material.color && object.material.color.getHex && 
+        object.material.color.getHex() === 0x00ffff))
+    );
+    
+    if (shouldRemove && object !== model) {
+      objectsToRemove.push(object);
     }
   });
   
-  if (auxScenes.length > 0) {
-    console.log(`找到 ${auxScenes.length} 个AuxScene图层对象:`, auxScenes.map(obj => obj.name));
+  if (objectsToRemove.length > 0) {
+    console.log(`找到 ${objectsToRemove.length} 个需要移除的辅助对象`);
     
-    // 从模型中移除AuxScene图层
-    auxScenes.forEach(aux => {
-      if (aux.parent) {
-        aux.parent.remove(aux);
-        console.log('从模型中移除AuxScene图层:', aux.name);
+    // 从模型中移除辅助对象
+    objectsToRemove.forEach(obj => {
+      if (obj.parent) {
+        obj.parent.remove(obj);
+        console.log('从模型中移除辅助对象:', obj.name || obj.type);
       }
     });
+  }
+  
+  // 添加保护：如果清理后模型为空，添加一个新的空组以避免问题
+  if (!model.children || model.children.length === 0) {
+    console.warn('清理后模型变为空，添加保护组');
+    const safetyGroup = new THREE.Group();
+    safetyGroup.name = "SafetyGroup";
+    model.add(safetyGroup);
   }
 }
 
