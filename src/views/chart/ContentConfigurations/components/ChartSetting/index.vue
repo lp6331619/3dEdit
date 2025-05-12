@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { PropType, computed, shallowRef, watch, ref } from 'vue'
+import { PropType, computed, shallowRef, watch, ref, nextTick } from 'vue'
 import {
   NameSetting,
   NameSetting2,
@@ -442,6 +442,11 @@ const submitEditModel = async () => {
   // 立即设置loading状态
   loading.value = true
   console.log('开始保存模型，loading状态:', loading.value)
+  
+  // 使用nextTick和setTimeout确保UI更新，让loading状态显示出来
+  await nextTick()
+  // 给浏览器一点时间去渲染UI更新
+  await new Promise(resolve => setTimeout(resolve, 50))
 
   try {
     // 获取当前编辑的模型组件ID - 这是模型组件ID，不是mesh ID
@@ -462,11 +467,14 @@ const submitEditModel = async () => {
       loading.value = false
       return
     }
-
+    
     // 更新模型列表 - 确保最新的变更已保存
     chartEditStore.setModelList(modelComponentId, model)
     console.log('准备导出的模型:', model)
-
+    
+    // 再次分割任务，确保UI可以刷新
+    await new Promise(resolve => setTimeout(resolve, 0))
+    
     // 2. 克隆并清理模型 - 避免修改原始模型
     let exportModel = model.clone()
     
@@ -792,27 +800,31 @@ const submitEditModel = async () => {
     console.log('清理并准备导出的模型:', exportModel)
 
     // 5. 导出为GLTF格式
+    // 再次确保UI能更新显示loading状态
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 20))
+    
     const exportedGltf: any = await new Promise<any>((resolve, reject) => {
-      // 导出前最终安全检查 - 防止导出空模型
+      // 最终导出安全检查
       if (!exportModel.children || exportModel.children.length === 0) {
-        console.error('准备导出时发现模型为空，添加占位组');
+        console.error('准备导出时发现模型为空，添加占位组')
         // 添加占位组，确保导出不会完全失败
-        const placeholderGroup = new THREE.Group();
-        placeholderGroup.name = "EmergencyPlaceholder";
-        exportModel.add(placeholderGroup);
-        message.warning('模型可能包含异常结构，已添加占位元素确保导出');
+        const placeholderGroup = new THREE.Group()
+        placeholderGroup.name = "EmergencyPlaceholder"
+        exportModel.add(placeholderGroup)
+        message.warning('模型可能包含异常结构，已添加占位元素确保导出')
       }
       
       // 导出前重命名顶层对象，防止生成空名称组
       if (!exportModel.name) {
-        exportModel.name = "ExportedModel";
+        exportModel.name = "ExportedModel_" + Date.now()
       }
       
       // 确保模型结构不变，设置用户自定义标记防止额外嵌套
-      exportModel.userData = exportModel.userData || {};
-      exportModel.userData.preserveStructure = true;
+      exportModel.userData = exportModel.userData || {}
+      exportModel.userData.preserveStructure = true
       
-      const exporter = new GLTFExporter();
+      const exporter = new GLTFExporter()
       exporter.parse(
         exportModel,
         (gltf) => resolve(gltf),
@@ -845,6 +857,10 @@ const submitEditModel = async () => {
       const output = JSON.stringify(jsonData)
       blob = new Blob([output], { type: 'application/json' })
     }
+    
+    // 在文件上传前再次更新UI
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 20))
 
     console.log('准备上传模型文件...')
     const file = new File([blob], `model_${Date.now()}.glb`, { type: blob.type })
