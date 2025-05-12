@@ -98,6 +98,9 @@ const message = useMessage()
 const editModel = () => {
   chartEditStore.setCurrentModel(deepClone(targetData.value))
 }
+const messageBox = ref({
+  loadingInstance: null
+})
 const findByUUID = (obj: any, targetUUID: string): any => {
   if (!obj) return null
   // 先判断当前对象
@@ -438,10 +441,12 @@ const submitEditModel = async () => {
     message.error('当前模型ID不存在，无法保存')
     return
   }
-
+  messageBox.value.loadingInstance = message.loading(
+    `正在保存模型...`,
+    { duration: 0 }
+  )
   // 立即设置loading状态
   loading.value = true
-  console.log('开始保存模型，loading状态:', loading.value)
   
   // 使用nextTick和setTimeout确保UI更新，让loading状态显示出来
   await nextTick()
@@ -451,7 +456,7 @@ const submitEditModel = async () => {
   try {
     // 获取当前编辑的模型组件ID - 这是模型组件ID，不是mesh ID
     const modelComponentId = currentModel.value.id
-    console.log('当前编辑的模型组件ID:', modelComponentId)
+    messageBox.value.loadingInstance.content = `准备导出模型 (ID: ${modelComponentId.substring(0, 8)})...`
 
     // 1. 确保模型数据存在
     const model = getModeList[modelComponentId]
@@ -460,9 +465,9 @@ const submitEditModel = async () => {
     }
 
     // 检查模型是否为空
-    console.log('模型检查:', model)
+    messageBox.value.loadingInstance.content = `检查模型数据完整性...`
     if (!model.children || model.children.length === 0) {
-      console.error('模型的children数组为空，可能是之前导出的模型有问题')
+      messageBox.value.loadingInstance?.destroy?.()
       message.error('模型无效：模型内容为空')
       loading.value = false
       return
@@ -470,7 +475,7 @@ const submitEditModel = async () => {
     
     // 更新模型列表 - 确保最新的变更已保存
     chartEditStore.setModelList(modelComponentId, model)
-    console.log('准备导出的模型:', model)
+    messageBox.value.loadingInstance.content = `模型数据已更新，准备导出...`
     
     // 再次分割任务，确保UI可以刷新
     await new Promise(resolve => setTimeout(resolve, 0))
@@ -570,7 +575,7 @@ const submitEditModel = async () => {
     // 执行预处理 - 移除导出标记层
     const hasRemovedLayers = removeExportLayers(exportModel);
     if (hasRemovedLayers) {
-      console.log('已移除导出标记层，模型结构已更新');
+      messageBox.value.loadingInstance.content = `已优化模型结构，移除冗余层级...`
     }
 
     // 清理模型 - 只移除辅助对象，保留原始结构
@@ -804,6 +809,8 @@ const submitEditModel = async () => {
     await nextTick()
     await new Promise(resolve => setTimeout(resolve, 20))
     
+    messageBox.value.loadingInstance.content = `正在导出模型...`
+    
     const exportedGltf: any = await new Promise<any>((resolve, reject) => {
       // 最终导出安全检查
       if (!exportModel.children || exportModel.children.length === 0) {
@@ -834,7 +841,8 @@ const submitEditModel = async () => {
           embedImages: true,       // 嵌入图片
           includeCustomExtensions: true, // 包含自定义扩展
           onlyVisible: true,       // 只导出可见对象
-          trs: false               // 不分解变换矩阵
+          trs: false,               // 不分解变换矩阵
+          truncateDrawRange: true, // 优化几何体数据范围
         }
       );
     })
@@ -862,7 +870,7 @@ const submitEditModel = async () => {
     await nextTick()
     await new Promise(resolve => setTimeout(resolve, 20))
 
-    console.log('准备上传模型文件...')
+    messageBox.value.loadingInstance.content = `正在上传模型文件...`
     const file = new File([blob], `model_${Date.now()}.glb`, { type: blob.type })
 
     // 上传文件到服务器
@@ -870,7 +878,7 @@ const submitEditModel = async () => {
     if (!res.data) throw new Error('模型上传失败: 未获取到URL')
 
     const modelUrl = res.data
-    console.log('模型上传成功, 文件URL:', modelUrl)
+    messageBox.value.loadingInstance.content = `模型上传成功，正在更新组件配置...`
 
     // 7. 更新组件配置
     // 注意：这里使用modelComponentId，不使用targetChart.selectId
@@ -885,6 +893,7 @@ const submitEditModel = async () => {
     chartEditStore.setTargetSelectChart(modelComponentId)
 
     // 9. 显示成功消息
+    messageBox.value.loadingInstance?.destroy?.()
     message.success('模型导出并保存成功')
 
     // 10. 退出编辑模式
@@ -892,12 +901,10 @@ const submitEditModel = async () => {
     setTimeout(() => {
       try {
         // 先退出编辑模式
-  chartEditStore.setCurrentModel(undefined)
-        console.log('已退出编辑模式')
-
+        chartEditStore.setCurrentModel(undefined)
+        
         // 最后关闭loading状态
         loading.value = false
-        console.log('操作完成，loading状态已关闭')
       } catch (error) {
         console.error('退出编辑模式时出错:', error)
         loading.value = false
@@ -905,6 +912,7 @@ const submitEditModel = async () => {
     }, 500)
   } catch (error) {
     console.error('模型导出失败:', error)
+    messageBox.value.loadingInstance?.destroy?.()
     message.error(`模型导出失败: ${error instanceof Error ? error.message : '未知错误'}`)
     loading.value = false
   }

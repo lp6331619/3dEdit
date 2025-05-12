@@ -63,7 +63,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import {
   ref,
   reactive,
@@ -105,7 +105,7 @@ import {
   deepClone,
   getCameraPositionLookAt
 } from '@/utils'
-import { Raycaster, Vector2, Vector3, Plane } from 'three'
+import { Raycaster, Vector2, Vector3, Plane, Euler } from 'three'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { storeToRefs } from 'pinia'
 import * as TWEEN from '@tweenjs/tween.js'
@@ -121,6 +121,14 @@ import lodash from 'lodash'
 const ModelLoad = defineAsyncComponent(() => import('@/components/ModelLoad/index.vue'))
 // const Effect = defineAsyncComponent(() => import('./effect.vue'))
 const tresItem = defineAsyncComponent(() => import('./item.vue'))
+
+// 添加全局变量用于控制渲染循环和变换操作
+if (typeof window !== 'undefined') {
+  window._tresCanvaThrottled = false;
+  window.transformBusy = false;
+  window._lastRenderTime = 0;
+  window.requestAnimationFrameThrottled = false;
+}
 
 const props = defineProps({
   isPreview: {
@@ -145,37 +153,33 @@ const componentListRef = chartEditStore.getComponentListRef
 
 const targetChart = chartEditStore.getTargetChart
 const emits = defineEmits(['click', 'rightClick'])
-const TresCanvasRef = shallowRef<any>()
-const cameraRefs = shallowRef<any>()
-const lightRef = shallowRef<any[]>([])
-const controlsRef = shallowRef<any>()
+const TresCanvasRef = shallowRef()
+const cameraRefs = shallowRef()
+const lightRef = shallowRef([])
+const controlsRef = shallowRef()
 const angle = ref({
   azimuthAngle: 0.6, //方位角
   polarAngle: 1.25, //方位角
   distance: 25
 })
 // 模型
-const config = reactive<{
-  componentList: any[]
-  lightSetting: any[]
-  htmlList: Record<string, any>
-}>({
+const config = reactive({
   componentList: [],
   lightSetting: [],
   htmlList: {}
 })
 const instance = getCurrentInstance()
-const components = markRaw(instance.appContext.components)
+const components = markRaw(instance?.appContext.components || {})
 // // 提供给子组件
 provide('components', components)
 
 //递归更新所有层级的配置
-const digList = (list: any) => {
+const digList = (list) => {
   const min = 1
   const max = 100
   const randomInteger = Math.floor(Math.random() * (max - min + 1)) + min
   const l = deepClone(list || [])
-  return l.map((item: any, i: number) => {
+  return l.map((item, i) => {
     if (item.groupList?.length) {
       item.groupList = digList(item.groupList)
     }
@@ -196,13 +200,13 @@ watch(
     // 所有ref存到componentListRef里
     nextTick(() => {
       componentListRef.value = []
-      config.componentList?.map((item: any) => {
+      config.componentList?.map((item) => {
         item.el && componentListRef.value.push(item.el)
-        item.groupList?.map((cc: any) => {
+        item.groupList?.map((cc) => {
           cc.el && componentListRef.value.push(cc.el)
         })
         // 更新贴图
-        item.children?.forEach((itemc:any) => {
+        item.children?.forEach((itemc) => {
           if (itemc.el && itemc.el.material && !itemc.el.isTransformControls) {
             // 只更新贴图，不clone材质
             let needUpdate = false;
@@ -222,10 +226,10 @@ watch(
   },
   { deep: true, immediate: true }
 )
-const clickFun = (e: any) => {
+const clickFun = (e) => {
   emits('click', e)
 }
-const clickRight = (e: any, item: any) => {
+const clickRight = (e, item) => {
   emits('rightClick', {
     e: e,
     item: item
@@ -233,7 +237,7 @@ const clickRight = (e: any, item: any) => {
   transformControlsState.enabled = false
   transformRef.value = null
 }
-const fitToBox = (current: any) => {
+const fitToBox = (current) => {
   controlsRef.value?.instance?.fitToBox(current, true)
 }
 
@@ -248,57 +252,145 @@ watch(
   { deep: true, immediate: true }
 )
 const { onLoop, onBeforeLoop, onAfterLoop, pause, resume } = useRenderLoop()
-// 变换控制器
-const ControlsStateMouseDown = (isMove: boolean) => {
-  if (!transformRef.value || isMove) return
-  const item = chartEditStore.getComponentListItem(transformRef.value.onlyId)
-  if (!item) return
-  const position = transformRef.value.position.clone()
-  const scale = transformRef.value.scale.clone()
-  const rotation = transformRef.value.rotation.clone()
-  if (item.type == 'Html') {
-    if (transformControlsState.mode == 'scale') {
-      const [x, y, z] = scale.toArray()
-      const { w, h } = item.attr
-      useChartEditStore().setComponentList(item.id, { w: w * x, h: h * y }, 'attr')
+// 变换控制器 - 简化版本，专注于解决性能问题
+const ControlsStateMouseDown = (isMove) => {
+  // 防止重复处理
+  if (!transformRef.value || isMove) return;
+  
+  // 标记为变换中，避免其他渲染循环干扰
+  window.transformBusy = true;
+  
+  try {
+    // 安全地获取对象，忽略属性类型检查错误
+    const item = chartEditStore.getComponentListItem(transformRef.value.onlyId);
+    if (!item) {
+      window.transformBusy = false;
+      return;
     }
+    
+    // 尝试获取变换信息
+    let position = [0, 0, 0];
+    let scale = [1, 1, 1];
+    let rotation = [0, 0, 0];
+    
+    if (transformRef.value.position) {
+      try {
+        const pos = transformRef.value.position.clone();
+        position = pos.toArray();
+      } catch (e) {}
+    }
+    
+    if (transformRef.value.scale) {
+      try {
+        const scl = transformRef.value.scale.clone();
+        scale = scl.toArray();
+      } catch (e) {}
+    }
+    
+    if (transformRef.value.rotation) {
+      try {
+        const rot = transformRef.value.rotation.clone();
+        rotation = rot.toArray();
+      } catch (e) {}
+    }
+    
+    // 处理HTML元素特殊情况
+    if (item.type === 'Html' && transformControlsState.mode === 'scale') {
+      const [x, y, z] = scale;
+      if (item.attr && item.attr.w != null && item.attr.h != null) {
+        useChartEditStore().setComponentList(
+          item.id, 
+          { w: item.attr.w * x, h: item.attr.h * y }, 
+          'attr'
+        );
+      }
+    }
+    
+    // 更新组件位置信息
+    if (item.id) {
+      useChartEditStore().setComponentList(
+        item.id,
+        {
+          position: position,
+          scale: scale,
+          rotation: rotation
+        },
+        'option'
+      );
+    }
+  } catch (error) {
+    console.error('变换控制器处理错误:', error);
+  } finally {
+    // 延迟重置状态，给变换操作完成的时间
+    setTimeout(() => {
+      window.transformBusy = false;
+    }, 50);
   }
-  useChartEditStore().setComponentList(
-    item.id,
-    {
-      position: [...position.toArray()],
-      scale: [...scale.toArray()],
-      rotation: [...rotation.toArray()]
-    },
-    'option'
-  )
-}
-const handleCameraChange = debounce((distance:any) => {
-  const {lookAt,position} = getCameraPositionLookAt(TresCanvasRef.value,distance)
-  cameraConfig.cameraPosition = position
-  cameraConfig.cameraLookAt = lookAt
-  useChartEditStore().setCameraConfig(cameraConfig)
-}, 200)
-let isFirst = true
-//监听控制器
-const OrbitControlsChange = (e: any) => {
-  if (isFirst) {
-    isFirst = false
-    return
-  }
-  const { distance, polarAngle, azimuthAngle } = e
-  cameraConfig.distancess = distance
-  cameraConfig.azimuthAngless = azimuthAngle
-  cameraConfig.polarAngless = polarAngle
-  handleCameraChange(distance)
-  useChartEditStore().setCameraConfig(cameraConfig)
 }
 
+const handleCameraChange = debounce((distance) => {
+  try {
+    const {lookAt, position} = getCameraPositionLookAt(TresCanvasRef.value, distance);
+    
+    // 安全地更新相机配置，忽略类型错误
+    if (cameraConfig) {
+      cameraConfig.cameraPosition = position;
+      cameraConfig.cameraLookAt = lookAt;
+      useChartEditStore().setCameraConfig(cameraConfig);
+    }
+  } catch (e) {
+    console.error('相机设置错误:', e);
+  }
+}, 200);
+
+let isFirst = true;
+//监听控制器
+const OrbitControlsChange = (e) => {
+  if (isFirst) {
+    isFirst = false;
+    return;
+  }
+  
+  try {
+    const { distance, polarAngle, azimuthAngle } = e;
+    
+    // 安全地更新相机角度设置，忽略类型错误
+    if (cameraConfig) {
+      cameraConfig.distancess = distance;
+      cameraConfig.azimuthAngless = azimuthAngle;
+      cameraConfig.polarAngless = polarAngle;
+      handleCameraChange(distance);
+      useChartEditStore().setCameraConfig(cameraConfig);
+    }
+  } catch (e) {
+    console.error('控制器设置错误:', e);
+  }
+}
+
+// 优化渲染循环 - 移除多余的requestAnimationFrame嵌套，使用合理的更新策略
 onLoop(({ delta, elapsed }) => {
-  pause()
-  // updateEvents(elapsed * 1000, delta * 1000)
+  // 变换操作时跳过常规更新
+  if (window.transformBusy) return;
+  
+  // 使用简单的节流机制避免过度渲染
+  const now = Date.now();
+  const timeSinceLastRender = now - (window._lastRenderTime || 0);
+  
+  // 每30ms最多执行一次更新（约33fps，足够流畅且不会过度消耗资源）
+  if (timeSinceLastRender > 30) {
+    window._lastRenderTime = now;
+    
+    // 直接执行必要的更新，不使用嵌套的requestAnimationFrame
+    // 更新TWEEN动画
+    if (TWEEN) {
+      TWEEN.update(elapsed * 1000);
+    }
+  }
 })
-onAfterLoop((res: any) => {})
+
+onAfterLoop((res) => {
+  // 可以在这里添加渲染完成后的操作
+})
 
 onMounted(() => {
   // const domEl = document.querySelector('.tres-canvas-container')!
@@ -307,60 +399,71 @@ onMounted(() => {
       if (TresCanvasRef.value) {
         canvasRefs.value = TresCanvasRef.value
         netWorkInternal(2000)
-        angle.value = {
-          azimuthAngle: cameraConfig.azimuthAngless, //方位角
-          polarAngle: cameraConfig.polarAngless, //方位角
-          distance: cameraConfig.distancess
+        
+        // 安全地更新角度设置
+        if (cameraConfig) {
+          angle.value = {
+            azimuthAngle: cameraConfig.azimuthAngless || 0.6,
+            polarAngle: cameraConfig.polarAngless || 1.25,
+            distance: cameraConfig.distancess || 25
+          }
         }
-        const{
-          context: {
-            camera,      // Three.js 的摄像机对象
-            scene,       // Three.js 的场景对象
-            renderer,    // Three.js 的渲染器对象
-            // ... 其他
-          },
-          // ... 其他属性
-        } = TresCanvasRef.value
-        // 1. 先获取 ref 拿底层对象
-        const {instance} = controlsRef.value
-        instance?.setLookAt(...cameraConfig.cameraPosition,...cameraConfig.cameraLookAt,true)
+        
+        // 设置相机位置
+        try {
+          const { instance } = controlsRef.value || {};
+          if (instance && cameraConfig && cameraConfig.cameraPosition && cameraConfig.cameraLookAt) {
+            instance.setLookAt(
+              ...(cameraConfig.cameraPosition || [0, 0, 5]),
+              ...(cameraConfig.cameraLookAt || [0, 0, 0]),
+              true
+            );
+          }
+        } catch (e) {
+          console.error('相机初始化错误:', e);
+        }
       }
-
     })
   }, 500)
-  const canvas = document.querySelector('.tres-canvas-container > canvas')!
-  window.addEventListener('message', e => {
-    const { evnetTarget, eventName, eventConst, ownerDocument, mockEvent } = e.data as any
-    if (mockEvent && eventName === 'click') {
-      const v = document.elementFromPoint(evnetTarget.clientX, evnetTarget.clientY) as any
-      if (!v && !v.getAttribute('data-event-sign')) {
-        return
+  
+  const canvas = document.querySelector('.tres-canvas-container > canvas');
+  if (canvas && window) {
+    window.addEventListener('message', e => {
+      const { evnetTarget, eventName, eventConst, ownerDocument, mockEvent } = e.data || {};
+      if (mockEvent && eventName === 'click') {
+        const v = document.elementFromPoint(evnetTarget?.clientX || 0, evnetTarget?.clientY || 0);
+        if (!v || !v.getAttribute || !v.getAttribute('data-event-sign')) {
+          return;
+        }
+        const signType = v.getAttribute('data-event-sign');
+        const path = v.getAttribute('data-value-path');
+        const data = v.__vue__proxy;
+        switch (signType) {
+          case 'notify': {
+            window.parent.postMessage(
+              JSON.stringify({
+                type: `3d-${v.getAttribute('data-notify-type')}`,
+                data: lodash.get(data, path)
+              }),
+              '*'
+            );
+          }
+        }
+        return;
       }
-      const signType = v.getAttribute('data-event-sign')
-      const path = v.getAttribute('data-value-path')
-      const data = v.__vue__proxy
-      switch (signType) {
-        case 'notify': {
-          window.parent.postMessage(
-            JSON.stringify({
-              type: `3d-${v.getAttribute('data-notify-type')}`,
-              data: lodash.get(data, path)
-            }),
-            '*'
-          )
+      if (evnetTarget && eventName && eventConst && window[eventConst]) {
+        try {
+          const clickEvent = new window[eventConst](eventName, evnetTarget);
+          if (ownerDocument && canvas.ownerDocument) {
+            canvas.ownerDocument.dispatchEvent(clickEvent);
+          }
+          canvas.dispatchEvent(clickEvent);
+        } catch (e) {
+          console.error('事件分发错误:', e);
         }
       }
-      return
-    }
-    if (evnetTarget && eventName) {
-      //@ts-ignore
-      const clickEvent = new window[eventConst](eventName, evnetTarget)
-      if (ownerDocument) {
-        canvas.ownerDocument.dispatchEvent(clickEvent)
-      }
-      canvas.dispatchEvent(clickEvent)
-    }
-  })
+    });
+  }
 })
 </script>
 

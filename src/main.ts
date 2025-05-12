@@ -37,6 +37,46 @@ addCollection(uimIcons)
 addCollection(lineMdIcons)
 addCollection(wiIcons)
 registryRequest(request)
+
+// 在应用初始化时设置全局变量
+if (typeof window !== 'undefined') {
+  // 添加渲染循环控制变量
+  window._tresCanvaThrottled = false
+  window.transformBusy = false
+  window._lastRenderTime = 0
+  window.requestAnimationFrameThrottled = false
+  window._modelLoadLastUpdate = 0
+
+  // 添加优化的requestAnimationFrame，避免重复调用
+  const originalRAF = window.requestAnimationFrame
+  window._rafCallbacks = new Map()
+
+  // 替换默认的requestAnimationFrame，添加防抖功能
+  window.requestAnimationFrame = function (callback) {
+    // 检查是否已存在相同的回调
+    for (const [id, cb] of window._rafCallbacks.entries()) {
+      if (cb.toString() === callback.toString()) {
+        // 已存在相同回调，取消旧的并创建新的
+        window.cancelAnimationFrame(id)
+        break
+      }
+    }
+
+    // 创建新的动画帧请求
+    const rafId = originalRAF.call(window, time => {
+      // 执行回调
+      callback(time)
+      // 执行完后从映射中移除
+      window._rafCallbacks.delete(rafId)
+    })
+
+    // 保存回调引用
+    window._rafCallbacks.set(rafId, callback)
+
+    return rafId
+  }
+}
+
 async function appInit() {
   const goAppProvider = createApp(GoAppProvider)
 
