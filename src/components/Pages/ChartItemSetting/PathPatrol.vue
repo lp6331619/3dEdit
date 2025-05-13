@@ -5,10 +5,12 @@
 <template>
   <CollapseItem :name="'定点巡视'">
     <n-form>
-      <!-- 巡视模式 -->
-      <n-form-item label="巡视模式">
-        <n-select v-model:value="patrolConfig.mode" :options="patrolModes" />
-      </n-form-item>
+      <setting-item-box name="巡视模式">
+        <!-- 巡视模式 -->
+        <n-form-item label="">
+          <n-select v-model:value="patrolConfig.mode" :options="patrolModes" />
+        </n-form-item>
+      </setting-item-box>
       <!-- 巡视速度 -->
       <setting-item-box name="巡视速度">
         <setting-item>

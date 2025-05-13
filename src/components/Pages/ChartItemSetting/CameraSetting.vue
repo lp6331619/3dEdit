@@ -48,15 +48,14 @@
         <n-input-number v-model:value="config.maxDistance" :min="0" size="small"></n-input-number>
       </setting-item>
     </setting-item-box>
-    <!-- 定点巡视功能 -->
-    <PathPatrol />
+    
   </collapse-item>
 </template>
 
 <script setup lang="ts">
 import { ref, PropType } from 'vue'
 import { PickCreateComponentType, BlendModeEnumList } from '@/packages/index.d'
-import { SettingItemBox, SettingItem, CollapseItem, PathPatrol } from '@/components/Pages/ChartItemSetting'
+import { SettingItemBox, SettingItem, CollapseItem } from '@/components/Pages/ChartItemSetting'
 import { icon } from '@/plugins'
 import logoImg from '@/assets/logo.png'
 import { useDesignStore } from '@/store/modules/designStore/designStore'

@@ -36,7 +36,6 @@
     />
     <!-- 滤镜 -->
     <!-- <styles-setting :isGroup="targetData.isGroup" :chartStyles="targetData.styles"></styles-setting> -->
-    
     <!-- 自定义配置项 -->
     <div v-if="currentModel && currentMesh && currentMesh.type == 'Mesh'">
       <MeshConfig :material="currentMesh.material" @update:material="handleMaterialUpdate" />

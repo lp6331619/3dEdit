@@ -27,6 +27,8 @@
     </n-space>
     <cameraSetting :config="cameraConfig" />
     <LightSetting :config="lightSetting" />
+    <!-- 定点巡视功能 -->
+    <PathPatrol />
     <!-- <StylesSetting :chartStyles="canvasConfig"  /> -->
     <n-divider style="margin: 10px 0"></n-divider>
   </div>
@@ -39,7 +41,7 @@ import { swatchesColors } from '@/settings/chartThemes/index'
 import { FileTypeEnum } from '@/enums/fileTypeEnum'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { EditCanvasConfigEnum } from '@/store/modules/chartEditStore/chartEditStore.d'
-import { CameraSetting, LightSetting, StylesSetting } from '@/components/Pages/ChartItemSetting'
+import { CameraSetting, LightSetting, StylesSetting,PathPatrol} from '@/components/Pages/ChartItemSetting'
 import { UploadCustomRequestOptions } from 'naive-ui'
 import { fileToUrl, loadAsyncComponent } from '@/utils'
 import { PreviewScaleEnum } from '@/enums/styleEnum'
