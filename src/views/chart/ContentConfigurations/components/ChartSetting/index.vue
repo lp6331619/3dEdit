@@ -502,8 +502,8 @@ const submitEditModel = async () => {
         
         // 检查是否是导出层级标记
         if (child.name && (
-            child.name === 'ExportedModel' || 
             child.name.includes('AuxScene') || 
+            child.name.includes('ExportedModel') ||
             child.name.includes('CleanedModel')
           )) {
           console.log('找到导出标记层:', child.name, '- 将提升其子对象');
@@ -810,6 +810,45 @@ const submitEditModel = async () => {
     
     messageBox.value.loadingInstance.content = `正在导出模型...`
     
+    // 最终清理：递归检查并删除所有包含ExportedModel的对象
+    const removeExportedModelLayers = (node: THREE.Object3D) => {
+      if (!node || !node.children || node.children.length === 0) return;
+      
+      // 递归处理所有子节点前，先保存子节点副本，避免在遍历过程中修改原数组
+      const childrenCopy = [...node.children];
+      
+      // 递归处理所有子节点
+      childrenCopy.forEach(child => removeExportedModelLayers(child));
+      
+      // 检查当前节点下是否有包含ExportedModel的子节点
+      for (let i = node.children.length - 1; i >= 0; i--) {
+        const child = node.children[i];
+        
+        // 如果子节点名称包含ExportedModel
+        if (child.name && child.name.includes('ExportedModel')) {
+          console.log(`找到包含ExportedModel的层: "${child.name}"`);
+          
+          // 收集所有孙子节点
+          const grandchildren = [...child.children];
+          
+          // 将孙子节点提升到当前节点下
+          grandchildren.forEach(grandchild => {
+            child.remove(grandchild);
+            node.add(grandchild);
+            console.log(`已将子对象 "${grandchild.name || '未命名'}" 提升一级`);
+          });
+          
+          // 移除包含ExportedModel的空节点
+          node.remove(child);
+          console.log(`已删除包含ExportedModel的层 "${child.name}"`);
+        }
+      }
+    };
+    
+    // 执行最终清理 - 删除所有包含ExportedModel的层
+    removeExportedModelLayers(exportModel);
+    console.log('已完成最终清理，删除了所有包含ExportedModel的层');
+    
     const exportedGltf: any = await new Promise<any>((resolve, reject) => {
       // 最终导出安全检查
       if (!exportModel.children || exportModel.children.length === 0) {
@@ -823,8 +862,8 @@ const submitEditModel = async () => {
       
       // 导出前重命名顶层对象，防止生成空名称组
       if (!exportModel.name) {
-        exportModel.name = "ExportedModel_" + Date.now()
-      }
+        exportModel.name = "Custom3DModel_" + Date.now()
+      } 
       
       // 确保模型结构不变，设置用户自定义标记防止额外嵌套
       exportModel.userData = exportModel.userData || {}
