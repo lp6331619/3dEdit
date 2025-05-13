@@ -62,6 +62,9 @@
       <PatrolPathLine v-if="patrolPathPoints.length > 1 && !isPreview" :pathPoints="patrolPathPoints" />
       <Stats v-if="canvasConfig.isFps" />
     </TresCanvas>
+    
+    <!-- 预览模式下的悬浮控制窗口 -->
+    <PatrolFloatWindow v-if="isPreview && patrolPathPoints.length > 1" />
   </div>
 </template>
 
@@ -125,6 +128,7 @@ const ModelLoad = defineAsyncComponent(() => import('@/components/ModelLoad/inde
 // const Effect = defineAsyncComponent(() => import('./effect.vue'))
 const tresItem = defineAsyncComponent(() => import('./item.vue'))
 const PatrolPathLine = defineAsyncComponent(() => import('./PatrolPathLine.vue'))
+const PatrolFloatWindow = defineAsyncComponent(() => import('./PatrolFloatWindow.vue'))
 
 // 添加全局变量用于控制渲染循环和变换操作
 if (typeof window !== 'undefined') {
@@ -557,5 +561,6 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   transform: translateZ(0);
+  position: relative;
 }
 </style>
