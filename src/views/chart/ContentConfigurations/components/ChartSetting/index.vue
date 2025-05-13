@@ -862,7 +862,7 @@ const submitEditModel = async () => {
       
       // 导出前重命名顶层对象，防止生成空名称组
       if (!exportModel.name) {
-        exportModel.name = "Custom3DModel_" + Date.now()
+        exportModel.name = "ExportedModel_" + Date.now()
       } 
       
       // 确保模型结构不变，设置用户自定义标记防止额外嵌套
