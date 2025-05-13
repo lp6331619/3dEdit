@@ -34,7 +34,12 @@
           
           <n-card v-if="patrolConfig.pathPoints.length > 0" size="small" title="路径点列表">
             <n-list hoverable clickable>
-              <n-list-item v-for="(point, index) in patrolConfig.pathPoints" :key="index">
+              <n-list-item 
+                v-for="(point, index) in patrolConfig.pathPoints" 
+                :key="index"
+                @click="moveToPathPoint(index)"
+                class="path-point-item"
+              >
                 <n-thing>
                   <template #header>
                     <n-space>
@@ -48,13 +53,20 @@
                       <div>位置: {{ formatVector(point.position) }}</div>
                       <div>朝向: {{ formatVector(point.lookAt) }}</div>
                       <n-space>
-                        <n-button size="tiny" @click="moveToPathPoint(index)">查看</n-button>
-                        <n-button size="tiny" type="warning" @click="updatePathPoint(index)">更新</n-button>
-                        <n-button size="tiny" type="error" @click="removePathPoint(index)">删除</n-button>
+                        <n-button size="tiny" type="warning" @click.stop="updatePathPoint(index)">更新</n-button>
+                        <n-button size="tiny" type="error" @click.stop="removePathPoint(index)">删除</n-button>
                       </n-space>
                     </n-space>
                   </template>
                 </n-thing>
+                <n-tooltip trigger="hover">
+                  <template #trigger>
+                    <n-icon size="18" class="preview-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512"><path d="M255.66 112c-77.94 0-157.89 45.11-220.83 135.33a16 16 0 0 0-.27 17.77C82.92 340.8 161.8 400 255.66 400c92.84 0 173.34-59.38 221.79-135.25a16.14 16.14 0 0 0 0-17.47C428.89 172.28 347.8 112 255.66 112z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"></path><circle cx="256" cy="256" r="80" fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="32"></circle></svg>
+                    </n-icon>
+                  </template>
+                  点击切换到此视角
+                </n-tooltip>
               </n-list-item>
             </n-list>
           </n-card>
@@ -269,6 +281,10 @@ const moveToPathPoint = (index: number) => {
       const controls = getControlsInstance()
       if (controls) {
         console.log('移动到路径点:', point.position, point.lookAt)
+        
+        // 临时设置状态标记，防止在动画过程中更新cameraConfig
+        chartEditStore.setInPatrolAnimation(true);
+        
         // 设置相机位置和朝向
         controls.setLookAt(
           point.position[0] || 0, 
@@ -280,13 +296,23 @@ const moveToPathPoint = (index: number) => {
           true // 开启过渡动画
         )
         
-        console.log(`已移动到路径点 ${index + 1}`)
+        console.log(`已移动到路径点 ${index + 1}`);
+        
+        // 在动画完成后重置状态标记
+        setTimeout(() => {
+          chartEditStore.setInPatrolAnimation(false);
+        }, 1000);
+        
+        // 使用全局提示组件显示通知
+        window['$message']?.success(`已切换到路径点 ${index + 1}`);
       } else {
         console.warn('未找到相机控制器实例')
+        window['$message']?.error('未找到相机控制器实例');
       }
     }
   } catch (error) {
     console.error('移动到路径点失败:', error)
+    window['$message']?.error('移动到路径点失败');
   }
 }
 
@@ -486,7 +512,7 @@ watch(
         
         // 加载路径点
         if (Array.isArray(newConfig.pathPoints)) {
-          patrolConfig.pathPoints = newConfig.pathPoints.map(point => ({
+          patrolConfig.pathPoints = newConfig.pathPoints.map((point: { position: number[], lookAt: number[] }) => ({
             position: [...point.position],
             lookAt: [...point.lookAt]
           }));
@@ -496,7 +522,7 @@ watch(
       } 
       // 兼容旧格式(直接是路径点数组)
       else if (Array.isArray(newConfig) && newConfig.length > 0) {
-        patrolConfig.pathPoints = newConfig.map((point: any) => ({
+        patrolConfig.pathPoints = newConfig.map((point: { position: number[], lookAt: number[] }) => ({
           position: [...point.position],
           lookAt: [...point.lookAt]
         }));
@@ -611,6 +637,17 @@ onBeforeUnmount(() => {
   margin-top: 8px;
 }
 
+.path-point-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.path-point-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-left: 3px solid #2080f0;
+}
+
 .path-point {
   display: flex;
   align-items: center;
@@ -631,5 +668,20 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: #606266;
   overflow: auto;
+}
+
+.preview-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #2080f0;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.path-point-item:hover .preview-icon {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.2);
 }
 </style> 
