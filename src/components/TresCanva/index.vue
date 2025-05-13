@@ -156,10 +156,21 @@ const componentListRef = chartEditStore.getComponentListRef
 
 // 巡视路径点
 const patrolPathPoints = computed(() => {
-  // 使用Pinia而非全局变量，确保返回数组
-  const points = chartEditStore.getPatrolPathPoints
-  return Array.isArray(points) ? points : []
+  // 从cameraConfig.fixedPointInspection.pathPoints中获取而不是从Pinia获取
+  const config = cameraConfig ? cameraConfig : {}
+  const fixedPointInspection = config.fixedPointInspection || { pathPoints: [] }
+  return Array.isArray(fixedPointInspection.pathPoints) ? fixedPointInspection.pathPoints : []
 })
+
+// 定点巡视面板数据
+const patrolMode = ref('once')
+const patrolSpeed = ref(5)
+const patrolActive = ref(false)
+const patrolModeOptions = [
+  { label: '单次', value: 'once' },
+  { label: '循环', value: 'loop' },
+  { label: '来回', value: 'roundtrip' }
+]
 
 const targetChart = chartEditStore.getTargetChart
 const emits = defineEmits(['click', 'rightClick'])
@@ -526,6 +537,260 @@ onMounted(() => {
     });
   }
 })
+
+// 切换巡视状态
+const togglePatrolMode = () => {
+  console.log('切换巡视状态，当前状态:', patrolActive.value, '预览模式:', props.isPreview)
+  
+  // 确保有足够的路径点
+  if (patrolPathPoints.value.length < 2) {
+    window['$message']?.warning('路径点不足，至少需要2个点');
+    return;
+  }
+  
+  patrolActive.value = !patrolActive.value
+  
+  // 确保更新UI状态
+  if (patrolActive.value) {
+    // 启动巡视前先确保更新cameraConfig
+    const newCameraConfig = { ...cameraConfig };
+    if (!newCameraConfig.fixedPointInspection) {
+      newCameraConfig.fixedPointInspection = {
+        pathPoints: patrolPathPoints.value,
+        config: { mode: patrolMode.value, speed: patrolSpeed.value },
+        inPatrolAnimation: true,
+        controlsInstance: newCameraConfig.fixedPointInspection?.controlsInstance || null
+      };
+    } else {
+      newCameraConfig.fixedPointInspection.config = { 
+        mode: patrolMode.value, 
+        speed: patrolSpeed.value 
+      };
+      newCameraConfig.fixedPointInspection.inPatrolAnimation = true;
+      newCameraConfig.fixedPointInspection.pathPoints = patrolPathPoints.value;
+    }
+    
+    // 直接更新配置
+    chartEditStore.setCameraConfig(newCameraConfig);
+    
+    // 在store中设置巡视状态
+    chartEditStore.setInPatrolAnimation(true);
+    
+    console.log('开始巡视: 状态已设置, 路径点:', patrolPathPoints.value.length);
+    startPatrol()
+  } else {
+    console.log('停止巡视: 状态已更新');
+    stopPatrol()
+  }
+}
+
+// 启动巡视
+const startPatrol = () => {
+  if (patrolPathPoints.value.length < 2) {
+    window['$message']?.warning('路径点不足，至少需要2个点')
+    patrolActive.value = false
+    return
+  }
+  
+  // 更详细的日志输出
+  console.log('开始巡视, 模式:', patrolMode.value, '速度:', patrolSpeed.value, '路径点数量:', patrolPathPoints.value.length)
+  
+  // 更新cameraConfig.fixedPointInspection中的配置
+  // 确保已有fixedPointInspection对象
+  const newCameraConfig = { ...cameraConfig }
+  if (!newCameraConfig.fixedPointInspection) {
+    newCameraConfig.fixedPointInspection = {
+      pathPoints: patrolPathPoints.value,
+      config: { mode: patrolMode.value, speed: patrolSpeed.value },
+      inPatrolAnimation: true,
+      controlsInstance: chartEditStore.getControlsInstance()
+    }
+  } else {
+    // 更新配置
+    newCameraConfig.fixedPointInspection.config = {
+      ...newCameraConfig.fixedPointInspection.config,
+      mode: patrolMode.value,
+      speed: patrolSpeed.value
+    }
+    newCameraConfig.fixedPointInspection.inPatrolAnimation = true;
+  }
+  chartEditStore.setCameraConfig(newCameraConfig)
+  
+  // 使用修改后的方法设置巡视配置
+  chartEditStore.setPatrolConfig({
+    mode: patrolMode.value,
+    speed: patrolSpeed.value
+  })
+  
+  // 设置状态标记
+  chartEditStore.setInPatrolAnimation(true)
+  
+  // 增强的控制器获取逻辑
+  let controls = null;
+  
+  // 尝试方法1: 从Pinia store获取
+  controls = chartEditStore.getControlsInstance;
+  console.log('1. 从Pinia获取控制器:', controls ? '成功' : '失败');
+  
+  // 尝试方法2: 从本地ref获取
+  if (!controls && controlsRef.value) {
+    const { instance } = controlsRef.value;
+    if (instance && typeof instance.setLookAt === 'function') {
+      controls = instance;
+      console.log('2. 从本地ref获取控制器:', '成功');
+      // 保存到cameraConfig.fixedPointInspection.controlsInstance中以便后续使用
+      const config = { ...cameraConfig };
+      if (config.fixedPointInspection) {
+        config.fixedPointInspection.controlsInstance = instance;
+        chartEditStore.setCameraConfig(config);
+      }
+    } else {
+      console.log('2. 从本地ref获取控制器:', '失败', instance);
+    }
+  }
+  
+  // 尝试方法3: 从DOM中查找
+  if (!controls) {
+    try {
+      const tresCanvas = document.querySelector('.tres-canvas-container canvas');
+      if (tresCanvas) {
+        // @ts-ignore - 尝试访问Vue实例属性
+        const vueInstance = tresCanvas.__vue__ || tresCanvas._vue;
+        if (vueInstance) {
+          const foundControls = vueInstance.exposed?.controlsRef?.value?.instance;
+          if (foundControls && typeof foundControls.setLookAt === 'function') {
+            controls = foundControls;
+            console.log('3. 从DOM获取控制器:', '成功');
+            // 保存到cameraConfig.fixedPointInspection.controlsInstance中
+            const config = { ...cameraConfig };
+            if (config.fixedPointInspection) {
+              config.fixedPointInspection.controlsInstance = foundControls;
+              chartEditStore.setCameraConfig(config);
+            }
+          } else {
+            console.log('3. 从DOM获取控制器:', '失败 - 找到实例但缺少setLookAt方法');
+          }
+        } else {
+          console.log('3. 从DOM获取控制器:', '失败 - 未找到Vue实例');
+        }
+      } else {
+        console.log('3. 从DOM获取控制器:', '失败 - 未找到canvas元素');
+      }
+    } catch (error) {
+      console.error('尝试从DOM获取控制器出错:', error);
+    }
+  }
+  
+  // 如果仍未找到控制器，给出错误提示
+  if (!controls) {
+    console.error('无法找到相机控制器实例，已尝试所有方法');
+    window['$message']?.error('未找到相机控制器实例，无法启动巡视');
+    patrolActive.value = false;
+    return;
+  }
+  
+  // 移动到第一个点开始巡视
+  moveToFirstPoint(controls);
+}
+
+// 提取移动到第一个点的逻辑为单独函数
+const moveToFirstPoint = (controls) => {
+  // 输出控制器详细信息
+  console.log('moveToFirstPoint调用，控制器:', controls ? '存在' : '不存在');
+  console.log('控制器方法: setLookAt =', typeof controls?.setLookAt === 'function' ? '可用' : '不可用');
+  
+  if (!controls || typeof controls.setLookAt !== 'function') {
+    console.error('控制器实例无效或缺少setLookAt方法')
+    patrolActive.value = false
+    return
+  }
+  
+  const firstPoint = patrolPathPoints.value[0]
+  console.log('第一个路径点:', firstPoint ? JSON.stringify(firstPoint) : '不存在');
+  
+  if (firstPoint) {
+    try {
+      console.log('移动到第一个路径点:', firstPoint)
+      
+      controls.setLookAt(
+        firstPoint.position[0] || 0,
+        firstPoint.position[1] || 0,
+        firstPoint.position[2] || 0,
+        firstPoint.lookAt[0] || 0,
+        firstPoint.lookAt[1] || 0,
+        firstPoint.lookAt[2] || 0,
+        true
+      )
+      
+      // 短暂延迟后开始动画，让相机先移动到第一个点
+      setTimeout(() => {
+        // 保存控制器实例到cameraConfig.fixedPointInspection.controlsInstance中
+        const config = { ...cameraConfig };
+        if (config.fixedPointInspection) {
+          config.fixedPointInspection.controlsInstance = controls;
+          chartEditStore.setCameraConfig(config);
+        }
+        
+        // 发送巡视开始事件
+        window.dispatchEvent(new CustomEvent('patrol-start', { 
+          detail: { 
+            mode: patrolMode.value, 
+            speed: patrolSpeed.value,
+            points: patrolPathPoints.value
+          } 
+        }))
+        
+        console.log('已发送巡视开始事件')
+      }, 1000)
+      
+      window['$message']?.success('开始定点巡视')
+    } catch (error) {
+      console.error('移动到第一个路径点出错:', error)
+      patrolActive.value = false
+      window['$message']?.error('启动巡视失败')
+    }
+  } else {
+    console.error('无法获取第一个路径点')
+    patrolActive.value = false
+    window['$message']?.error('启动巡视失败:无法获取第一个路径点')
+  }
+}
+
+// 停止巡视
+const stopPatrol = () => {
+  // 设置状态标记
+  chartEditStore.setInPatrolAnimation(false)
+  
+  // 更新cameraConfig
+  const newCameraConfig = { ...cameraConfig };
+  if (newCameraConfig.fixedPointInspection) {
+    newCameraConfig.fixedPointInspection.inPatrolAnimation = false;
+    chartEditStore.setCameraConfig(newCameraConfig);
+  }
+  
+  // 发送巡视停止事件
+  window.dispatchEvent(new CustomEvent('patrol-stop'))
+  
+  console.log('停止巡视')
+  window['$message']?.info('已停止定点巡视')
+}
+
+// 监听巡视配置变化
+watch(() => {
+  return cameraConfig && cameraConfig.fixedPointInspection ? cameraConfig.fixedPointInspection.config : null
+}, (newConfig) => {
+  if (newConfig) {
+    patrolMode.value = newConfig.mode || 'once'
+    patrolSpeed.value = newConfig.speed || 5
+  }
+}, { immediate: true, deep: true })
+
+// 监听巡视状态变化
+watch(() => {
+  return cameraConfig && cameraConfig.fixedPointInspection ? cameraConfig.fixedPointInspection.inPatrolAnimation : false
+}, (active) => {
+  patrolActive.value = active
+}, { immediate: true })
 </script>
 
 <style>

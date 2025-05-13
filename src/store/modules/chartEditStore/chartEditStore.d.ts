@@ -235,6 +235,20 @@ export interface CameraConfigType {
   minDistance?: number
   // 最大距离
   maxDistance?: number
-  // 定点巡视路径点
-  fixedPointInspection?: { position: number[]; lookAt: number[] }[]
+  // 定点巡视数据
+  fixedPointInspection?: {
+    // 路径点
+    pathPoints: { position: number[]; lookAt: number[] }[]
+    // 巡视配置
+    config: {
+      // 巡视模式: once(单次), loop(循环), roundtrip(来回)
+      mode: string
+      // 巡视速度 (1-10)
+      speed: number
+    }
+    // 是否在巡视动画中
+    inPatrolAnimation: boolean
+    // 控制器实例
+    controlsInstance?: any
+  }
 }

@@ -128,6 +128,9 @@ const chartEditStore = useChartEditStore()
 // 相机配置 - 不使用类型断言，使用普通计算属性
 const cameraConfig = computed(() => chartEditStore.getCameraConfig)
 
+// 路径点懒加载标志 - 添加这个来控制初始加载时机
+const isInitialized = ref(false)
+
 // 巡视模式选项
 const patrolModes = [
   { label: '单次巡视', value: 'once' },
@@ -150,6 +153,9 @@ const patrolConfig = reactive({
   currentPointIndex: 0, // 当前巡视点索引
   direction: 1, // 巡视方向: 1(向前), -1(向后)
 })
+
+// 同步状态标记，防止循环更新
+let isConfigSyncing = false;
 
 // 动画控制变量
 let animationTimer: number | null = null
@@ -234,7 +240,6 @@ const addCurrentPositionAsPathPoint = () => {
         position,
         lookAt
       })
-      
       console.log('已添加路径点:', {position, lookAt})
     }
   } catch (error) {
@@ -360,7 +365,8 @@ const stopPatrol = () => {
   
   // 清除动画定时器
   if (animationTimer !== null) {
-    clearTimeout(animationTimer);
+    cancelAnimationFrame(animationTimer as any);
+    clearTimeout(animationTimer as any);
     animationTimer = null;
   }
   
@@ -477,9 +483,15 @@ const animateFrame = () => {
       );
     } catch (error) {
       console.error('移动相机出错:', error);
+      // 发生错误时停止巡视，避免卡死
+      stopPatrol();
+      return;
     }
   } else {
     console.error('无法执行动画帧：控制器实例为空');
+    // 没有控制器时也停止巡视
+    stopPatrol();
+    return;
   }
   
   // 判断是否继续动画
@@ -488,11 +500,18 @@ const animateFrame = () => {
     // 速度越高，间隔越短，动画越快
     const frameDelay = Math.max(10, 50 - patrolConfig.speed * 4);
     
-    // 计划下一帧动画
-    animationTimer = window.setTimeout(animateFrame, frameDelay);
+    // 计划下一帧动画 - 使用RAF代替setTimeout提高性能
+    cancelAnimationFrame(animationTimer as any);
+    animationTimer = requestAnimationFrame(() => {
+      // 设置延迟执行
+      setTimeout(animateFrame, frameDelay);
+    }) as unknown as number;
   } else {
     // 当前段动画结束，移动到下一段
-    animationTimer = window.setTimeout(animateToNextPoint, 500);
+    cancelAnimationFrame(animationTimer as any);
+    animationTimer = requestAnimationFrame(() => {
+      setTimeout(animateToNextPoint, 500);
+    }) as unknown as number;
   }
 }
 
@@ -500,85 +519,162 @@ const animateFrame = () => {
 watch(
   () => cameraConfig.value && (cameraConfig.value as any).fixedPointInspection,
   (newConfig) => {
-    if (newConfig) {
-      // 检查是否是扩展的格式(包含配置和路径点)
-      if (typeof newConfig === 'object' && newConfig.config && Array.isArray(newConfig.pathPoints)) {
+    if (!newConfig) return;
+    
+    // 跳过首次加载，等mounted时再加载
+    if (!isInitialized.value) return;
+    
+    // 如果已经在同步中，避免循环更新
+    if (isConfigSyncing) return;
+    
+    // 如果是在巡视动画中，跳过配置更新
+    if (patrolConfig.enabled) {
+      console.log('巡视动画中，跳过配置加载');
+      return;
+    }
+    
+    try {
+      isConfigSyncing = true;
+      
+      // 检查是否是扩展的格式
+      if (typeof newConfig === 'object') {
         // 加载配置
         if (newConfig.config) {
           const { mode, speed } = newConfig.config;
-          if (mode) patrolConfig.mode = mode;
-          if (typeof speed === 'number') patrolConfig.speed = speed;
+          if (mode && mode !== patrolConfig.mode) patrolConfig.mode = mode;
+          if (typeof speed === 'number' && speed !== patrolConfig.speed) patrolConfig.speed = speed;
         }
         
-        // 加载路径点
+        // 加载路径点，仅当有实际变化时才更新
         if (Array.isArray(newConfig.pathPoints)) {
-          patrolConfig.pathPoints = newConfig.pathPoints.map((point: { position: number[], lookAt: number[] }) => ({
-            position: [...point.position],
-            lookAt: [...point.lookAt]
-          }));
-          
-          console.log('已从相机配置加载完整定点巡视数据');
+          // 简单比较路径点长度，避免频繁的深度比较
+          if (newConfig.pathPoints.length !== patrolConfig.pathPoints.length) {
+            // 深拷贝以避免引用问题，并只使用必要的数据
+            patrolConfig.pathPoints = newConfig.pathPoints.map((point: { position: number[], lookAt: number[] }) => ({
+              position: [...(point.position || [0, 0, 0])],
+              lookAt: [...(point.lookAt || [0, 0, 0])]
+            }));
+            
+            console.log('已从相机配置加载完整定点巡视数据');
+          } else if (patrolConfig.pathPoints.length === 0 && newConfig.pathPoints.length > 0) {
+            // 首次加载路径点
+            patrolConfig.pathPoints = newConfig.pathPoints.map((point: { position: number[], lookAt: number[] }) => ({
+              position: [...(point.position || [0, 0, 0])],
+              lookAt: [...(point.lookAt || [0, 0, 0])]
+            }));
+            
+            console.log('首次加载路径点数据');
+          }
         }
       } 
       // 兼容旧格式(直接是路径点数组)
-      else if (Array.isArray(newConfig) && newConfig.length > 0) {
-        patrolConfig.pathPoints = newConfig.map((point: { position: number[], lookAt: number[] }) => ({
-          position: [...point.position],
-          lookAt: [...point.lookAt]
-        }));
-        
-        console.log('已从相机配置加载定点巡视路径点数据');
+      else if (Array.isArray(newConfig)) {
+        // 简单比较路径点长度，避免频繁的深度比较
+        if (newConfig.length !== patrolConfig.pathPoints.length) {
+          patrolConfig.pathPoints = newConfig.map((point: { position: number[], lookAt: number[] }) => ({
+            position: [...(point.position || [0, 0, 0])],
+            lookAt: [...(point.lookAt || [0, 0, 0])]
+          }));
+          
+          console.log('已从相机配置加载定点巡视路径点数据');
+        }
       }
-      
-      // 同步到Pinia但不触发watch
-      chartEditStore.setPatrolPathPoints([...patrolConfig.pathPoints]);
+    } catch (error) {
+      console.error('处理巡视配置数据出错:', error);
+    } finally {
+      // 延迟重置同步状态标记，避免立即触发其他监听器
+      setTimeout(() => {
+        isConfigSyncing = false;
+      }, 500);
     }
   },
-  { immediate: true, deep: true }
+  { 
+    immediate: false, // 改为false，首次不加载
+    deep: false, // 改为false，避免深度监听带来的性能问题
+    flush: 'post'
+  }
 );
 
-// 同步路径点和巡视配置到Pinia和相机配置
+// 同步路径点和巡视配置到cameraConfig.fixedPointInspection
 const syncPatrolConfigDebounced = debounce(() => {
+  // 如果已经在同步中，避免循环更新
+  if (isConfigSyncing) return;
+  
+  // 如果是在巡视动画中，跳过配置更新
+  if (patrolConfig.enabled) {
+    console.log('巡视动画中，跳过配置同步');
+    return;
+  }
+  
   try {
-    // 构建完整的巡视配置对象
+    isConfigSyncing = true;
+    
+    // 构建完整的巡视配置对象，使用深拷贝避免引用问题
     const completeConfig = {
+      pathPoints: patrolConfig.pathPoints.map(point => ({
+        position: [...point.position],
+        lookAt: [...point.lookAt]
+      })),
       config: {
         mode: patrolConfig.mode,
         speed: patrolConfig.speed
       },
-      pathPoints: patrolConfig.pathPoints
+      inPatrolAnimation: patrolConfig.enabled,
+      controlsInstance: cameraConfig.value?.fixedPointInspection?.controlsInstance || null
     };
     
-    // 使用Pinia存储路径点和配置
-    chartEditStore.setPatrolPathPoints([...patrolConfig.pathPoints]);
-    chartEditStore.setPatrolConfig(completeConfig.config);
-
-    // 同时更新到cameraConfig
-    if (cameraConfig.value && chartEditStore) {
-      // 获取当前cameraConfig的副本
-      const newCameraConfig = { ...(cameraConfig.value as any) };
-      
-      // 检查是否需要更新(避免循环更新)
-      const currentConfig = JSON.stringify(newCameraConfig.fixedPointInspection || {});
-      const newConfigStr = JSON.stringify(completeConfig);
-      
-      if (currentConfig !== newConfigStr) {
-        // 更新fixedPointInspection字段为完整配置
-        newCameraConfig.fixedPointInspection = completeConfig;
-        
-        // 提交更新到store
-        chartEditStore.setCameraConfig(newCameraConfig);
+    // 构建新的相机配置对象
+    const newCameraConfig = { ...cameraConfig.value };
+    
+    // 优化比较逻辑，只比较有意义的字段而不是整个对象
+    const currentPathPoints = newCameraConfig.fixedPointInspection?.pathPoints || [];
+    const currentConfig = newCameraConfig.fixedPointInspection?.config || {} as { mode?: string; speed?: number };
+    
+    // 比较路径点数量，如果数量不同，肯定需要更新
+    let needUpdate = currentPathPoints.length !== completeConfig.pathPoints.length;
+    
+    // 如果数量相同，比较配置参数是否有变化
+    if (!needUpdate) {
+      // 比较配置参数
+      if (currentConfig.mode !== completeConfig.config.mode || 
+          currentConfig.speed !== completeConfig.config.speed ||
+          newCameraConfig.fixedPointInspection?.inPatrolAnimation !== completeConfig.inPatrolAnimation) {
+        needUpdate = true;
       }
+      // 跳过路径点的深度比较，减少计算量
+    }
+    
+    // 只有当配置有实际变化时才更新
+    if (needUpdate) {
+      // 更新fixedPointInspection字段为完整配置
+      newCameraConfig.fixedPointInspection = completeConfig;
+      
+      // 更新相机配置
+      chartEditStore.setCameraConfig(newCameraConfig);
+      console.log('已同步巡视配置到cameraConfig');
     }
   } catch (error) {
-    console.error('更新巡视配置出错:', error);
+    console.error('同步巡视配置出错:', error);
+  } finally {
+    // 延迟重置同步状态标记
+    setTimeout(() => {
+      isConfigSyncing = false;
+    }, 500);
   }
-}, 300);
+}, 1000); // 进一步增加防抖时间，避免频繁更新
 
-// 监听路径点变化
+// 路径点变化监听 - 减少频率
+let pathPointsChangeTimer: number | null = null;
 watch(() => patrolConfig.pathPoints, () => {
-  syncPatrolConfigDebounced();
-}, { deep: true });
+  // 避免频繁触发
+  if (pathPointsChangeTimer) {
+    clearTimeout(pathPointsChangeTimer);
+  }
+  pathPointsChangeTimer = window.setTimeout(() => {
+    syncPatrolConfigDebounced();
+    pathPointsChangeTimer = null;
+  }, 1000);
+}, { deep: false }); // 设为false，减少深度监听
 
 // 监听模式变化
 watch(() => patrolConfig.mode, () => {
@@ -614,9 +710,44 @@ const handleKeyDown = (event: KeyboardEvent) => {
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown)
 
-  // 调试输出，检查控制器是否可用
-  const controls = getControlsInstance()
-  console.log('巡视控制器状态:', controls ? '可用' : '不可用')
+  // 延迟加载路径点数据，避免首次渲染时卡顿
+  setTimeout(() => {
+    // 加载控制器实例
+    const controls = getControlsInstance()
+    console.log('巡视控制器状态:', controls ? '可用' : '不可用')
+    
+    // 显式一次性加载配置数据
+    try {
+      isConfigSyncing = true;
+      const config = cameraConfig.value;
+      if (config && config.fixedPointInspection) {
+        // 加载配置
+        if (config.fixedPointInspection.config) {
+          patrolConfig.mode = config.fixedPointInspection.config.mode || 'once';
+          patrolConfig.speed = config.fixedPointInspection.config.speed || 5;
+        }
+        
+        // 加载路径点
+        if (Array.isArray(config.fixedPointInspection.pathPoints)) {
+          patrolConfig.pathPoints = config.fixedPointInspection.pathPoints.map(point => ({
+            position: [...(point.position || [0, 0, 0])],
+            lookAt: [...(point.lookAt || [0, 0, 0])]
+          }));
+          console.log('已延迟加载定点巡视数据');
+        }
+      }
+      
+      // 标记已初始化，可以开始监听变化
+      isInitialized.value = true;
+    } catch (error) {
+      console.error('初始化巡视数据出错:', error);
+    } finally {
+      // 重置同步状态
+      setTimeout(() => {
+        isConfigSyncing = false;
+      }, 500);
+    }
+  }, 500);
 })
 
 // 卸载时清理
@@ -629,6 +760,12 @@ onBeforeUnmount(() => {
   
   // 清除全局标记
   chartEditStore.setInPatrolAnimation(false)
+  
+  // 清理定时器
+  if (pathPointsChangeTimer) {
+    clearTimeout(pathPointsChangeTimer);
+    pathPointsChangeTimer = null;
+  }
 })
 </script>
 

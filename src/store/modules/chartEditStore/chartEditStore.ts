@@ -181,7 +181,21 @@ export const useChartEditStore = defineStore({
 
       cameraPosition: [20, 20, 20], //摄像机的位置
       cameraLookAt: [0, 0, 0], //摄像机的lookAt
-      fixedPointInspection: [] //巡视数据
+      fixedPointInspection: {
+        // 路径点
+        pathPoints: [],
+        // 巡视配置
+        config: {
+          // 巡视模式: once(单次), loop(循环), roundtrip(来回)
+          mode: 'once',
+          // 巡视速度 (1-10)
+          speed: 5
+        },
+        // 是否在巡视动画中
+        inPatrolAnimation: false,
+        // 控制器实例
+        controlsInstance: null
+      }
       // minZoom: 0.01, //最小缩放
       // maxZoom: 1 // 最大缩放
       // enablePan: true, //启用平移
@@ -229,24 +243,7 @@ export const useChartEditStore = defineStore({
     //模型列表
     modelList: {},
     // 当前编辑的模型
-    currentModel: undefined,
-
-    // 巡视功能相关状态
-    patrolState: {
-      // 控制器实例
-      controlsInstance: null,
-      // 路径点
-      pathPoints: [],
-      // 巡视配置
-      config: {
-        // 巡视模式: once(单次), loop(循环), roundtrip(来回)
-        mode: 'once',
-        // 巡视速度 (1-10)
-        speed: 5
-      },
-      // 是否在巡视动画中
-      inPatrolAnimation: false
-    }
+    currentModel: undefined
   }),
   getters: {
     getMousePosition(): MousePositionType {
@@ -301,38 +298,38 @@ export const useChartEditStore = defineStore({
 
     // 巡视功能相关getter
     getPatrolState() {
-      return this.patrolState
+      return this.cameraConfig.fixedPointInspection
     },
     getPatrolPathPoints() {
-      return this.patrolState.pathPoints
+      return this.cameraConfig.fixedPointInspection.pathPoints
     },
     getPatrolConfig() {
-      return this.patrolState.config
+      return this.cameraConfig.fixedPointInspection.config
     },
     getControlsInstance() {
-      return this.patrolState.controlsInstance
+      return this.cameraConfig.fixedPointInspection.controlsInstance
     },
     getInPatrolAnimation() {
-      return this.patrolState.inPatrolAnimation
+      return this.cameraConfig.fixedPointInspection.inPatrolAnimation
     }
   },
   actions: {
     // 设置巡视路径点
     setPatrolPathPoints(points) {
-      this.patrolState.pathPoints = points
+      this.cameraConfig.fixedPointInspection.pathPoints = points
     },
     // 设置巡视配置
     setPatrolConfig(config) {
-      this.patrolState.config = { ...this.patrolState.config, ...config }
+      this.cameraConfig.fixedPointInspection.config = { ...this.cameraConfig.fixedPointInspection.config, ...config }
     },
     // 设置控制器实例
     setControlsInstance(instance) {
-      this.patrolState.controlsInstance = instance
+      this.cameraConfig.fixedPointInspection.controlsInstance = instance
       console.log('已设置控制器实例到Pinia store', instance ? '成功' : '为空')
     },
     // 设置巡视动画状态
     setInPatrolAnimation(status) {
-      this.patrolState.inPatrolAnimation = status
+      this.cameraConfig.fixedPointInspection.inPatrolAnimation = status
     },
 
     //编辑的模型数据
