@@ -237,6 +237,13 @@ export const useChartEditStore = defineStore({
       controlsInstance: null,
       // 路径点
       pathPoints: [],
+      // 巡视配置
+      config: {
+        // 巡视模式: once(单次), loop(循环), roundtrip(来回)
+        mode: 'once',
+        // 巡视速度 (1-10)
+        speed: 5
+      },
       // 是否在巡视动画中
       inPatrolAnimation: false
     }
@@ -299,6 +306,9 @@ export const useChartEditStore = defineStore({
     getPatrolPathPoints() {
       return this.patrolState.pathPoints
     },
+    getPatrolConfig() {
+      return this.patrolState.config
+    },
     getControlsInstance() {
       return this.patrolState.controlsInstance
     },
@@ -310,6 +320,10 @@ export const useChartEditStore = defineStore({
     // 设置巡视路径点
     setPatrolPathPoints(points) {
       this.patrolState.pathPoints = points
+    },
+    // 设置巡视配置
+    setPatrolConfig(config) {
+      this.patrolState.config = { ...this.patrolState.config, ...config }
     },
     // 设置控制器实例
     setControlsInstance(instance) {

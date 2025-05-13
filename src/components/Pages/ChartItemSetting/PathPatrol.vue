@@ -9,18 +9,16 @@
       <n-form-item label="巡视模式">
         <n-select v-model:value="patrolConfig.mode" :options="patrolModes" />
       </n-form-item>
-      
       <!-- 巡视速度 -->
-      <n-form-item label="巡视速度">
-        <n-slider
-          v-model:value="patrolConfig.speed"
-          :min="1"
-          :max="10"
-          :tooltip="true"
-          :format-tooltip="(value: number) => `${value}x`"
-        />
-      </n-form-item>
-      
+      <setting-item-box name="巡视速度">
+        <setting-item>
+          <n-slider v-model:value="patrolConfig.speed" :step="1" :min="1" :max="12" :tooltip="true"
+          :format-tooltip="(value: number) => `${value}x`"></n-slider>
+        </setting-item>
+        <setting-item>
+          <n-input-number v-model:value="patrolConfig.speed" :min="1" :step="1" :max="12" size="small"></n-input-number>
+        </setting-item>
+      </setting-item-box>
       <!-- 路径点管理 -->
       <n-form-item>
         <n-space vertical>
@@ -105,7 +103,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onBeforeUnmount, computed, onMounted } from 'vue'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
-import { CollapseItem } from '../ChartItemSetting'
+import { SettingItemBox, SettingItem, CollapseItem, PathPatrol } from '@/components/Pages/ChartItemSetting'
 import { getCameraPositionLookAt } from '@/hooks/useCanvas'
 import { debounce } from 'lodash'
 import { ElButton, ElInputNumber, ElSelect, ElOption, ElMessageBox } from 'element-plus'
@@ -470,21 +468,39 @@ const animateFrame = () => {
   }
 }
 
-// 同步全局cameraConfig.fixedPointInspection到路径点 (初始加载)
+// 同步全局cameraConfig.fixedPointInspection到路径点和巡视配置(初始加载)
 watch(
   () => cameraConfig.value && (cameraConfig.value as any).fixedPointInspection,
-  (newPoints) => {
-    if (newPoints && Array.isArray(newPoints) && newPoints.length > 0) {
-      // 使用标记防止触发反向更新
-      const isFromConfig = true;
-      
-      // 直接赋值，避免引用问题
-      patrolConfig.pathPoints = newPoints.map(point => ({
-        position: [...point.position],
-        lookAt: [...point.lookAt]
-      }));
-      
-      console.log('已从相机配置加载定点巡视数据');
+  (newConfig) => {
+    if (newConfig) {
+      // 检查是否是扩展的格式(包含配置和路径点)
+      if (typeof newConfig === 'object' && newConfig.config && Array.isArray(newConfig.pathPoints)) {
+        // 加载配置
+        if (newConfig.config) {
+          const { mode, speed } = newConfig.config;
+          if (mode) patrolConfig.mode = mode;
+          if (typeof speed === 'number') patrolConfig.speed = speed;
+        }
+        
+        // 加载路径点
+        if (Array.isArray(newConfig.pathPoints)) {
+          patrolConfig.pathPoints = newConfig.pathPoints.map(point => ({
+            position: [...point.position],
+            lookAt: [...point.lookAt]
+          }));
+          
+          console.log('已从相机配置加载完整定点巡视数据');
+        }
+      } 
+      // 兼容旧格式(直接是路径点数组)
+      else if (Array.isArray(newConfig) && newConfig.length > 0) {
+        patrolConfig.pathPoints = newConfig.map((point: any) => ({
+          position: [...point.position],
+          lookAt: [...point.lookAt]
+        }));
+        
+        console.log('已从相机配置加载定点巡视路径点数据');
+      }
       
       // 同步到Pinia但不触发watch
       chartEditStore.setPatrolPathPoints([...patrolConfig.pathPoints]);
@@ -493,38 +509,58 @@ watch(
   { immediate: true, deep: true }
 );
 
-// 同步路径点到Pinia和相机配置
-const syncPathPointsDebounced = debounce((newPoints) => {
-  if (!newPoints || !Array.isArray(newPoints)) return;
-  
-  // 使用Pinia存储路径点，供TresCanva组件访问
-  chartEditStore.setPatrolPathPoints([...newPoints]);
+// 同步路径点和巡视配置到Pinia和相机配置
+const syncPatrolConfigDebounced = debounce(() => {
+  try {
+    // 构建完整的巡视配置对象
+    const completeConfig = {
+      config: {
+        mode: patrolConfig.mode,
+        speed: patrolConfig.speed
+      },
+      pathPoints: patrolConfig.pathPoints
+    };
+    
+    // 使用Pinia存储路径点和配置
+    chartEditStore.setPatrolPathPoints([...patrolConfig.pathPoints]);
+    chartEditStore.setPatrolConfig(completeConfig.config);
 
-  // 同时更新到cameraConfig
-  if (cameraConfig.value && chartEditStore) {
-    try {
+    // 同时更新到cameraConfig
+    if (cameraConfig.value && chartEditStore) {
       // 获取当前cameraConfig的副本
       const newCameraConfig = { ...(cameraConfig.value as any) };
-      // 更新fixedPointInspection属性，仅当值真正改变时才更新
-      const currentFixedPoints = JSON.stringify(newCameraConfig.fixedPointInspection || []);
-      const newFixedPoints = JSON.stringify(newPoints);
       
-      if (currentFixedPoints !== newFixedPoints) {
-        newCameraConfig.fixedPointInspection = [...newPoints];
+      // 检查是否需要更新(避免循环更新)
+      const currentConfig = JSON.stringify(newCameraConfig.fixedPointInspection || {});
+      const newConfigStr = JSON.stringify(completeConfig);
+      
+      if (currentConfig !== newConfigStr) {
+        // 更新fixedPointInspection字段为完整配置
+        newCameraConfig.fixedPointInspection = completeConfig;
+        
         // 提交更新到store
         chartEditStore.setCameraConfig(newCameraConfig);
       }
-    } catch (error) {
-      console.error('更新相机配置出错:', error);
     }
+  } catch (error) {
+    console.error('更新巡视配置出错:', error);
   }
 }, 300);
 
-// 同步路径点到全局变量 (便于TresCanva组件访问)
-watch(() => patrolConfig.pathPoints, (newPoints) => {
-  // 使用防抖函数避免频繁更新
-  syncPathPointsDebounced(newPoints);
+// 监听路径点变化
+watch(() => patrolConfig.pathPoints, () => {
+  syncPatrolConfigDebounced();
 }, { deep: true });
+
+// 监听模式变化
+watch(() => patrolConfig.mode, () => {
+  syncPatrolConfigDebounced();
+});
+
+// 监听速度变化
+watch(() => patrolConfig.speed, () => {
+  syncPatrolConfigDebounced();
+});
 
 // 键盘快捷键
 const handleKeyDown = (event: KeyboardEvent) => {

@@ -59,7 +59,7 @@
         @dragging="ControlsStateMouseDown"
       />
       <!-- 巡视路径线 -->
-      <PatrolPathLine v-if="patrolPathPoints.length > 1" :pathPoints="patrolPathPoints" />
+      <PatrolPathLine v-if="patrolPathPoints.length > 1 && !isPreview" :pathPoints="patrolPathPoints" />
       <Stats v-if="canvasConfig.isFps" />
     </TresCanvas>
   </div>
