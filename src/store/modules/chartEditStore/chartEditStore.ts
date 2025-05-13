@@ -37,7 +37,8 @@ import {
   TargetChartType,
   RecordChartType,
   RequestGlobalConfigType,
-  EditCanvasConfigType
+  EditCanvasConfigType,
+  CameraConfigType
 } from './chartEditStore.d'
 
 const chartHistoryStore = useChartHistoryStore()
@@ -179,7 +180,8 @@ export const useChartEditStore = defineStore({
       zoomSpeed: 5, //缩放速度
 
       cameraPosition: [20, 20, 20], //摄像机的位置
-      cameraLookAt: [0, 0, 0] //摄像机的lookAt
+      cameraLookAt: [0, 0, 0], //摄像机的lookAt
+      fixedPointInspection: [] //巡视数据
       // minZoom: 0.01, //最小缩放
       // maxZoom: 1 // 最大缩放
       // enablePan: true, //启用平移
@@ -227,7 +229,17 @@ export const useChartEditStore = defineStore({
     //模型列表
     modelList: {},
     // 当前编辑的模型
-    currentModel: undefined
+    currentModel: undefined,
+
+    // 巡视功能相关状态
+    patrolState: {
+      // 控制器实例
+      controlsInstance: null,
+      // 路径点
+      pathPoints: [],
+      // 是否在巡视动画中
+      inPatrolAnimation: false
+    }
   }),
   getters: {
     getMousePosition(): MousePositionType {
@@ -255,7 +267,7 @@ export const useChartEditStore = defineStore({
     getComponentList(): Array<CreateComponentType | CreateComponentGroupType> {
       return this.componentList
     },
-    getCameraConfig(): RequestGlobalConfigType {
+    getCameraConfig(): CameraConfigType {
       return this.cameraConfig
     },
     getLightSetting(): RequestGlobalConfigType {
@@ -278,9 +290,37 @@ export const useChartEditStore = defineStore({
     },
     getCurrentModel() {
       return this.currentModel
+    },
+
+    // 巡视功能相关getter
+    getPatrolState() {
+      return this.patrolState
+    },
+    getPatrolPathPoints() {
+      return this.patrolState.pathPoints
+    },
+    getControlsInstance() {
+      return this.patrolState.controlsInstance
+    },
+    getInPatrolAnimation() {
+      return this.patrolState.inPatrolAnimation
     }
   },
   actions: {
+    // 设置巡视路径点
+    setPatrolPathPoints(points) {
+      this.patrolState.pathPoints = points
+    },
+    // 设置控制器实例
+    setControlsInstance(instance) {
+      this.patrolState.controlsInstance = instance
+      console.log('已设置控制器实例到Pinia store', instance ? '成功' : '为空')
+    },
+    // 设置巡视动画状态
+    setInPatrolAnimation(status) {
+      this.patrolState.inPatrolAnimation = status
+    },
+
     //编辑的模型数据
     setCurrentModel(model: any) {
       this.currentModel = model

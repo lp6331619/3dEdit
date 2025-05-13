@@ -42,19 +42,21 @@
     </setting-item-box>
     <setting-item-box name="最大距离">
       <setting-item>
-        <n-slider v-model:value="config.maxDistance" :step="1" :min="0" :max="9999"></n-slider>
+        <n-slider v-model:value="config.maxDistance" :step="1" :min="0" :max="999"></n-slider>
       </setting-item>
       <setting-item>
         <n-input-number v-model:value="config.maxDistance" :min="0" size="small"></n-input-number>
       </setting-item>
     </setting-item-box>
+    <!-- 定点巡视功能 -->
+    <PathPatrol />
   </collapse-item>
 </template>
 
 <script setup lang="ts">
 import { ref, PropType } from 'vue'
 import { PickCreateComponentType, BlendModeEnumList } from '@/packages/index.d'
-import { SettingItemBox, SettingItem, CollapseItem } from '@/components/Pages/ChartItemSetting'
+import { SettingItemBox, SettingItem, CollapseItem, PathPatrol } from '@/components/Pages/ChartItemSetting'
 import { icon } from '@/plugins'
 import logoImg from '@/assets/logo.png'
 import { useDesignStore } from '@/store/modules/designStore/designStore'

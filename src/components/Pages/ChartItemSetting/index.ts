@@ -22,6 +22,10 @@ import StylesSetting from './StylesSetting.vue'
 import CameraSetting from './CameraSetting.vue'
 // 灯光
 import LightSetting from './LightSetting.vue'
+
+// 路径巡逻
+import PathPatrol from './PathPatrol.vue'
+
 export {
   CollapseItem,
   SettingItemBox,
@@ -34,5 +38,6 @@ export {
   SizeSetting,
   StylesSetting,
   CameraSetting,
-  LightSetting
+  LightSetting,
+  PathPatrol
 }

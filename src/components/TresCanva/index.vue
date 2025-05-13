@@ -58,6 +58,8 @@
         v-bind="transformControlsState"
         @dragging="ControlsStateMouseDown"
       />
+      <!-- 巡视路径线 -->
+      <PatrolPathLine v-if="patrolPathPoints.length > 1" :pathPoints="patrolPathPoints" />
       <Stats v-if="canvasConfig.isFps" />
     </TresCanvas>
   </div>
@@ -121,6 +123,7 @@ import lodash from 'lodash'
 const ModelLoad = defineAsyncComponent(() => import('@/components/ModelLoad/index.vue'))
 // const Effect = defineAsyncComponent(() => import('./effect.vue'))
 const tresItem = defineAsyncComponent(() => import('./item.vue'))
+const PatrolPathLine = defineAsyncComponent(() => import('./PatrolPathLine.vue'))
 
 // 添加全局变量用于控制渲染循环和变换操作
 if (typeof window !== 'undefined') {
@@ -150,6 +153,13 @@ const lightSetting = chartEditStore.getLightSetting
 const transformControlsState = chartEditStore.getTransformControlsState
 // 组件列表ref
 const componentListRef = chartEditStore.getComponentListRef
+
+// 巡视路径点
+const patrolPathPoints = computed(() => {
+  // 使用Pinia而非全局变量，确保返回数组
+  const points = chartEditStore.getPatrolPathPoints
+  return Array.isArray(points) ? points : []
+})
 
 const targetChart = chartEditStore.getTargetChart
 const emits = defineEmits(['click', 'rightClick'])
@@ -329,19 +339,34 @@ const ControlsStateMouseDown = (isMove) => {
 }
 
 const handleCameraChange = debounce((distance) => {
+  // 如果在巡视动画中，跳过更新cameraConfig
+  if (chartEditStore.getInPatrolAnimation === true) {
+    console.log('巡视动画中，跳过相机配置更新');
+    return;
+  }
+  
   try {
     const {lookAt, position} = getCameraPositionLookAt(TresCanvasRef.value, distance);
     
     // 安全地更新相机配置，忽略类型错误
     if (cameraConfig) {
-      cameraConfig.cameraPosition = position;
-      cameraConfig.cameraLookAt = lookAt;
-      useChartEditStore().setCameraConfig(cameraConfig);
+      // 创建新的配置对象，保留原有的fixedPointInspection数据
+      const newCameraConfig = { ...cameraConfig };
+      
+      // 检查是否有实际变化，避免不必要的更新
+      const posChanged = JSON.stringify(newCameraConfig.cameraPosition) !== JSON.stringify(position);
+      const lookAtChanged = JSON.stringify(newCameraConfig.cameraLookAt) !== JSON.stringify(lookAt);
+      
+      if (posChanged || lookAtChanged) {
+        newCameraConfig.cameraPosition = position;
+        newCameraConfig.cameraLookAt = lookAt;
+        chartEditStore.setCameraConfig(newCameraConfig);
+      }
     }
   } catch (e) {
     console.error('相机设置错误:', e);
   }
-}, 200);
+}, 300);
 
 let isFirst = true;
 //监听控制器
@@ -351,16 +376,31 @@ const OrbitControlsChange = (e) => {
     return;
   }
   
+  // 如果在巡视动画中，跳过更新cameraConfig
+  if (chartEditStore.getInPatrolAnimation === true) {
+    return;
+  }
+  
   try {
     const { distance, polarAngle, azimuthAngle } = e;
     
     // 安全地更新相机角度设置，忽略类型错误
     if (cameraConfig) {
-      cameraConfig.distancess = distance;
-      cameraConfig.azimuthAngless = azimuthAngle;
-      cameraConfig.polarAngless = polarAngle;
-      handleCameraChange(distance);
-      useChartEditStore().setCameraConfig(cameraConfig);
+      // 创建新的配置对象，保留原有的fixedPointInspection数据
+      const newCameraConfig = { ...cameraConfig };
+      
+      // 检查是否有实际变化
+      if (newCameraConfig.distancess !== distance || 
+          newCameraConfig.azimuthAngless !== azimuthAngle ||
+          newCameraConfig.polarAngless !== polarAngle) {
+        
+        newCameraConfig.distancess = distance;
+        newCameraConfig.azimuthAngless = azimuthAngle;
+        newCameraConfig.polarAngless = polarAngle;
+        
+        // 由于handleCameraChange也会调用setCameraConfig，这里不重复调用
+        handleCameraChange(distance);
+      }
     }
   } catch (e) {
     console.error('控制器设置错误:', e);
@@ -398,6 +438,7 @@ onMounted(() => {
     nextTick(() => {
       if (TresCanvasRef.value) {
         canvasRefs.value = TresCanvasRef.value
+        // 调用netWorkInternal初始化
         netWorkInternal(2000)
         
         // 安全地更新角度设置
@@ -413,18 +454,38 @@ onMounted(() => {
         try {
           const { instance } = controlsRef.value || {};
           if (instance && cameraConfig && cameraConfig.cameraPosition && cameraConfig.cameraLookAt) {
-            instance.setLookAt(
-              ...(cameraConfig.cameraPosition || [0, 0, 5]),
-              ...(cameraConfig.cameraLookAt || [0, 0, 0]),
-              true
-            );
+            // 使用Pinia存储控制器实例，不再使用全局变量
+            chartEditStore.setControlsInstance(instance);
+            console.log('已将控制器实例存储到Pinia store');
+            
+            // 测试控制器实例是否有setLookAt方法
+            if (typeof instance.setLookAt === 'function') {
+              console.log('控制器实例的setLookAt方法可用');
+              
+              // 移动相机到初始位置
+              instance.setLookAt(
+                ...(cameraConfig.cameraPosition || [0, 0, 5]),
+                ...(cameraConfig.cameraLookAt || [0, 0, 0]),
+                true
+              );
+              console.log('已将相机移动到初始位置');
+            } else {
+              console.error('控制器实例缺少setLookAt方法');
+            }
+          } else {
+            console.error('控制器实例或相机配置无效:', {
+              hasInstance: !!instance,
+              hasCameraConfig: !!cameraConfig,
+              hasPosition: !!(cameraConfig && cameraConfig.cameraPosition),
+              hasLookAt: !!(cameraConfig && cameraConfig.cameraLookAt)
+            });
           }
         } catch (e) {
-          console.error('相机初始化错误:', e);
+          console.error('设置相机位置出错:', e);
         }
       }
     })
-  }, 500)
+  }, 300)
   
   const canvas = document.querySelector('.tres-canvas-container > canvas');
   if (canvas && window) {

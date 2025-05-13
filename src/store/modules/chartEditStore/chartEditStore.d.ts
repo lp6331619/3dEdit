@@ -23,7 +23,7 @@ export enum EditCanvasTypeEnum {
   IS_CREATE = 'isCreate',
   IS_DRAG = 'isDrag',
   IS_SELECT = 'isSelect',
-  IS_CODE_EDIT="isCodeEdit"
+  IS_CODE_EDIT = 'isCodeEdit'
 }
 
 // 编辑区域
@@ -83,7 +83,7 @@ export interface EditCanvasConfigType {
   [FilterEnum.SKEW_X]: number
   [FilterEnum.SKEW_Y]: number
   [FilterEnum.BLEND_MODE]: string
-  isFps:boolean
+  isFps: boolean
   // 大屏名称
   [EditCanvasConfigEnum.PROJECT_NAME]?: string
   // 大屏宽度
@@ -97,7 +97,7 @@ export interface EditCanvasConfigType {
   // 图表主题颜色
   [EditCanvasConfigEnum.CHART_THEME_COLOR]: ChartColorsNameType
   // 自定义图表主题颜色
-  [EditCanvasConfigEnum.CHART_CUSTOM_THEME_COLOR_INFO]?: CustomColorsType[] 
+  [EditCanvasConfigEnum.CHART_CUSTOM_THEME_COLOR_INFO]?: CustomColorsType[]
   // 图表全局配置
   [EditCanvasConfigEnum.CHART_THEME_SETTING]: GlobalThemeJsonType
   // 图表主题颜色
@@ -163,8 +163,8 @@ type RequestPublicConfigType = {
 
 // 数据池项类型
 export type RequestDataPondItemType = {
-  dataPondId: string,
-  dataPondName: string,
+  dataPondId: string
+  dataPondName: string
   dataPondRequestConfig: RequestConfigType
 }
 
@@ -217,4 +217,24 @@ export interface ChartEditStorage {
   [ChartEditStoreEnum.EDIT_CANVAS_CONFIG]: EditCanvasConfigType
   [ChartEditStoreEnum.REQUEST_GLOBAL_CONFIG]: RequestGlobalConfigType
   [ChartEditStoreEnum.COMPONENT_LIST]: Array<CreateComponentType | CreateComponentGroupType>
+}
+
+// 相机配置类型
+export interface CameraConfigType {
+  // 相机位置
+  cameraPosition?: number[]
+  // 相机观察点
+  cameraLookAt?: number[]
+  // 方位角
+  azimuthAngless?: number
+  // 极角
+  polarAngless?: number
+  // 距离
+  distancess?: number
+  // 最小距离
+  minDistance?: number
+  // 最大距离
+  maxDistance?: number
+  // 定点巡视路径点
+  fixedPointInspection?: { position: number[]; lookAt: number[] }[]
 }
