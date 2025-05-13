@@ -307,28 +307,92 @@ export const useChartEditStore = defineStore({
       return this.cameraConfig.fixedPointInspection.config
     },
     getControlsInstance() {
+      // 确保fixedPointInspection对象存在
+      if (!this.cameraConfig.fixedPointInspection) {
+        this.cameraConfig.fixedPointInspection = {
+          pathPoints: [],
+          config: {
+            mode: 'once',
+            speed: 5
+          },
+          inPatrolAnimation: false,
+          controlsInstance: null
+        }
+      }
       return this.cameraConfig.fixedPointInspection.controlsInstance
     },
     getInPatrolAnimation() {
+      // 确保fixedPointInspection对象存在
+      if (!this.cameraConfig.fixedPointInspection) {
+        return false
+      }
       return this.cameraConfig.fixedPointInspection.inPatrolAnimation
     }
   },
   actions: {
     // 设置巡视路径点
     setPatrolPathPoints(points) {
+      // 确保fixedPointInspection对象存在
+      if (!this.cameraConfig.fixedPointInspection) {
+        this.cameraConfig.fixedPointInspection = {
+          pathPoints: [],
+          config: {
+            mode: 'once',
+            speed: 5
+          },
+          inPatrolAnimation: false,
+          controlsInstance: null
+        }
+      }
       this.cameraConfig.fixedPointInspection.pathPoints = points
     },
     // 设置巡视配置
     setPatrolConfig(config) {
+      // 确保fixedPointInspection对象存在
+      if (!this.cameraConfig.fixedPointInspection) {
+        this.cameraConfig.fixedPointInspection = {
+          pathPoints: [],
+          config: {
+            mode: 'once',
+            speed: 5
+          },
+          inPatrolAnimation: false,
+          controlsInstance: null
+        }
+      }
       this.cameraConfig.fixedPointInspection.config = { ...this.cameraConfig.fixedPointInspection.config, ...config }
     },
     // 设置控制器实例
     setControlsInstance(instance) {
+      // 确保fixedPointInspection对象存在
+      if (!this.cameraConfig.fixedPointInspection) {
+        this.cameraConfig.fixedPointInspection = {
+          pathPoints: [],
+          config: {
+            mode: 'once',
+            speed: 5
+          },
+          inPatrolAnimation: false,
+          controlsInstance: null
+        }
+      }
       this.cameraConfig.fixedPointInspection.controlsInstance = instance
       console.log('已设置控制器实例到Pinia store', instance ? '成功' : '为空')
     },
     // 设置巡视动画状态
     setInPatrolAnimation(status) {
+      // 确保fixedPointInspection对象存在
+      if (!this.cameraConfig.fixedPointInspection) {
+        this.cameraConfig.fixedPointInspection = {
+          pathPoints: [],
+          config: {
+            mode: 'once',
+            speed: 5
+          },
+          inPatrolAnimation: false,
+          controlsInstance: null
+        }
+      }
       this.cameraConfig.fixedPointInspection.inPatrolAnimation = status
     },
 
