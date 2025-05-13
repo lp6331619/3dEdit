@@ -14,12 +14,12 @@
  * 5. 切换Mesh后，从缓存或模型配置中恢复贴图
 -->
 <template>
-  <collapse-item name="材质" :expanded="true">
-    <setting-item-box name="材质类型" :alone="true">
+  <collapse-item name="属性" :expanded="true">
+    <!-- <setting-item-box name="材质类型" :alone="true">
       <setting-item>
         <n-select v-model:value="material.type" size="small" :options="materialList" @update:value="handleMaterialChange"/>
       </setting-item>
-    </setting-item-box>
+    </setting-item-box> -->
     
     <!-- 基本材质属性 -->
     <setting-item-box name="基本属性">
