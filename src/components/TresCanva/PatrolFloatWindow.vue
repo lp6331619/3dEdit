@@ -100,7 +100,15 @@ const formatSpeed = (val: number): string => `${val}x`
 
 // 监听配置变化
 watch(() => patrolConfig, () => {
-  // 配置变化时可以加入一些操作，如保存配置等
+  // 监听到配置变化时，通过setPatrolParams更新巡视配置
+  // 这样会触发立即同步到cameraConfig，确保数据被保存
+  // 注意：因为已经在usePatrol.hook.ts的setPatrolParams函数中实现了同步
+  // 而且patrolConfig是响应式的，所以这个监听实际上不需要做额外操作
+  console.log('巡视配置已更改:', { 
+    mode: patrolConfig.mode, 
+    speed: patrolConfig.speed,
+    pointsCount: pathPoints.value.length 
+  });
 }, { deep: true })
 
 </script>

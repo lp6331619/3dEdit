@@ -148,22 +148,10 @@ export function usePatrol() {
           lookAt
         })
         console.log('已添加路径点:', { position, lookAt })
+        window['$message']?.success('已添加路径点')
 
-        // 如果只有一个点，自动添加第二个点稍微偏移的位置
-        if (patrolConfig.pathPoints.length === 1) {
-          // 让第二个点比第一个点稍微偏移一些
-          const position2 = [...position]
-          position2[0] += 5 // X轴偏移5个单位
-
-          patrolConfig.pathPoints.push({
-            position: position2,
-            lookAt: [...lookAt]
-          })
-          console.log('已自动添加第二个路径点:', { position: position2, lookAt })
-          window['$message']?.success('已添加两个路径点')
-        } else {
-          window['$message']?.success('已添加路径点')
-        }
+        // 立即同步到cameraConfig
+        syncPatrolConfigNow()
 
         return true
       }
@@ -172,6 +160,47 @@ export function usePatrol() {
       window['$message']?.error('添加路径点失败')
     }
     return false
+  }
+  // 立即同步巡视配置到cameraConfig
+  const syncPatrolConfigNow = () => {
+    // 取消任何延迟同步
+    syncPatrolConfigDebounced.cancel()
+
+    // 确保不在同步过程中
+    if (isConfigSyncing) return
+
+    try {
+      isConfigSyncing = true
+
+      // 构建巡视配置
+      const patrolData = {
+        pathPoints: patrolConfig.pathPoints.map(point => ({
+          position: [...point.position],
+          lookAt: [...point.lookAt]
+        })),
+        config: {
+          mode: patrolConfig.mode,
+          speed: patrolConfig.speed
+        },
+        inPatrolAnimation: patrolConfig.enabled,
+        controlsInstance: cameraConfig.value?.fixedPointInspection?.controlsInstance || null
+      }
+
+      // 更新cameraConfig
+      const newConfig = cameraConfig.value ? { ...cameraConfig.value } : {}
+      newConfig.fixedPointInspection = patrolData
+      console.log(cameraConfig.value, newConfig, 1111)
+
+      // 保存到store
+      chartEditStore.setCameraConfig(newConfig)
+      console.log('已立即同步巡视配置到cameraConfig', newConfig)
+    } catch (error) {
+      console.error('同步巡视配置出错:', error)
+    } finally {
+      setTimeout(() => {
+        isConfigSyncing = false
+      }, 200)
+    }
   }
 
   // 更新路径点
@@ -191,6 +220,10 @@ export function usePatrol() {
 
         console.log(`已更新路径点 ${index + 1}:`, { position, lookAt })
         window['$message']?.success(`已更新路径点 ${index + 1}`)
+
+        // 立即同步到cameraConfig
+        syncPatrolConfigNow()
+
         return true
       }
     } catch (error) {
@@ -206,6 +239,10 @@ export function usePatrol() {
       patrolConfig.pathPoints.splice(index, 1)
       console.log(`已删除路径点 ${index + 1}`)
       window['$message']?.success(`已删除路径点 ${index + 1}`)
+
+      // 立即同步到cameraConfig
+      syncPatrolConfigNow()
+
       return true
     }
     return false
@@ -268,10 +305,10 @@ export function usePatrol() {
 
   // 启动巡视
   const startPatrol = () => {
-    if (patrolConfig.pathPoints.length < 2) {
-      console.log('路径点不足，至少需要2个点')
+    if (patrolConfig.pathPoints.length < 1) {
+      console.log('没有路径点，至少需要1个点')
       patrolConfig.enabled = false
-      window['$message']?.warning('路径点不足，至少需要2个点')
+      window['$message']?.warning('没有路径点，至少需要1个点')
       return false
     }
 
@@ -283,7 +320,20 @@ export function usePatrol() {
     // 设置状态，防止在巡视过程中更新cameraConfig
     chartEditStore.setInPatrolAnimation(true)
 
-    // 执行第一段动画
+    // 只有一个点的情况
+    if (patrolConfig.pathPoints.length === 1) {
+      // 直接移动到该点
+      moveToPathPoint(0)
+
+      // 3秒后自动结束巡视
+      setTimeout(() => {
+        stopPatrol()
+      }, 3000)
+
+      return true
+    }
+
+    // 多个点的情况，执行动画
     animateToNextPoint()
     return true
   }
@@ -317,8 +367,14 @@ export function usePatrol() {
 
   // 动画到下一个点
   const animateToNextPoint = () => {
-    if (!patrolConfig.enabled || patrolConfig.pathPoints.length < 2) {
+    if (!patrolConfig.enabled) {
       stopPatrol()
+      return
+    }
+
+    // 只有一个点，不需要动画
+    if (patrolConfig.pathPoints.length < 2) {
+      moveToPathPoint(0)
       return
     }
 
@@ -476,13 +532,14 @@ export function usePatrol() {
     if (isConfigSyncing) return
 
     // 如果是在巡视动画中，跳过配置更新
-    if (patrolConfig.enabled) {
+    if (patrolConfig.enabled && chartEditStore.getInPatrolAnimation) {
       console.log('巡视动画中，跳过配置同步')
       return
     }
 
     try {
       isConfigSyncing = true
+      console.log('开始同步巡视配置到cameraConfig')
 
       // 构建完整的巡视配置对象，使用深拷贝避免引用问题
       const completeConfig = {
@@ -499,46 +556,27 @@ export function usePatrol() {
       }
 
       // 构建新的相机配置对象
-      const newCameraConfig = { ...cameraConfig.value }
+      const newCameraConfig = cameraConfig.value ? { ...cameraConfig.value } : {}
 
-      // 优化比较逻辑，只比较有意义的字段而不是整个对象
-      const currentPathPoints = newCameraConfig.fixedPointInspection?.pathPoints || []
-      const currentConfig = newCameraConfig.fixedPointInspection?.config || ({} as { mode?: string; speed?: number })
+      // 无条件更新fixedPointInspection字段，确保修改总是被保存
+      newCameraConfig.fixedPointInspection = completeConfig
 
-      // 比较路径点数量，如果数量不同，肯定需要更新
-      let needUpdate = currentPathPoints.length !== completeConfig.pathPoints.length
-
-      // 如果数量相同，比较配置参数是否有变化
-      if (!needUpdate) {
-        // 比较配置参数
-        if (
-          currentConfig.mode !== completeConfig.config.mode ||
-          currentConfig.speed !== completeConfig.config.speed ||
-          newCameraConfig.fixedPointInspection?.inPatrolAnimation !== completeConfig.inPatrolAnimation
-        ) {
-          needUpdate = true
-        }
-        // 跳过路径点的深度比较，减少计算量
-      }
-
-      // 只有当配置有实际变化时才更新
-      if (needUpdate) {
-        // 更新fixedPointInspection字段为完整配置
-        newCameraConfig.fixedPointInspection = completeConfig
-
-        // 更新相机配置
-        chartEditStore.setCameraConfig(newCameraConfig)
-        console.log('已同步巡视配置到cameraConfig')
-      }
+      // 更新相机配置
+      chartEditStore.setCameraConfig(newCameraConfig)
+      console.log('已同步巡视配置到cameraConfig:', {
+        pathPoints: completeConfig.pathPoints.length,
+        mode: completeConfig.config.mode,
+        speed: completeConfig.config.speed
+      })
     } catch (error) {
       console.error('同步巡视配置出错:', error)
     } finally {
       // 延迟重置同步状态标记
       setTimeout(() => {
         isConfigSyncing = false
-      }, 500)
+      }, 200)
     }
-  }, 1000)
+  }, 300)
 
   // 获取当前巡视状态
   const getPatrolStatus = (): PatrolStatus => {
@@ -553,16 +591,48 @@ export function usePatrol() {
 
   // 设置巡视参数
   const setPatrolParams = (params: { mode?: string; speed?: number }) => {
+    let changed = false
+
     if (params.mode && ['once', 'loop', 'roundtrip'].includes(params.mode)) {
-      patrolConfig.mode = params.mode
+      if (patrolConfig.mode !== params.mode) {
+        patrolConfig.mode = params.mode
+        changed = true
+      }
     }
 
     if (typeof params.speed === 'number' && params.speed >= 1 && params.speed <= 12) {
-      patrolConfig.speed = params.speed
+      if (patrolConfig.speed !== params.speed) {
+        patrolConfig.speed = params.speed
+        changed = true
+      }
     }
 
-    // 同步到cameraConfig
-    syncPatrolConfigDebounced()
+    // 如果参数有变化，立即同步到cameraConfig
+    if (changed) {
+      // 取消之前的延迟同步
+      syncPatrolConfigDebounced.cancel()
+
+      // 直接同步
+      const currentConfig = cameraConfig.value ? { ...cameraConfig.value } : {}
+      if (!currentConfig.fixedPointInspection) {
+        currentConfig.fixedPointInspection = {
+          pathPoints: [],
+          config: { mode: patrolConfig.mode, speed: patrolConfig.speed },
+          inPatrolAnimation: false,
+          controlsInstance: null
+        }
+      } else {
+        currentConfig.fixedPointInspection.config = {
+          ...currentConfig.fixedPointInspection.config,
+          mode: patrolConfig.mode,
+          speed: patrolConfig.speed
+        }
+      }
+
+      // 更新配置
+      chartEditStore.setCameraConfig(currentConfig)
+      console.log('巡视参数已更新并同步:', { mode: patrolConfig.mode, speed: patrolConfig.speed })
+    }
 
     return true
   }
@@ -581,8 +651,10 @@ export function usePatrol() {
       lookAt: [...(point.lookAt || [0, 0, 0])]
     }))
 
-    // 同步到cameraConfig
-    syncPatrolConfigDebounced()
+    // 立即同步到cameraConfig
+    syncPatrolConfigNow()
+
+    console.log('已更新所有路径点:', { count: patrolConfig.pathPoints.length })
 
     return true
   }

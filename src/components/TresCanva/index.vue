@@ -11,16 +11,13 @@
       <!-- 坐标格辅助对象 -->
       <TresGridHelper :args="[1000, 100]" />
       <!-- 透视摄像机 -->
-      <TresPerspectiveCamera ref="cameraRefs"/>
+      <TresPerspectiveCamera ref="cameraRefs" :position="[0,0,0]"/>
       <CameraControls
         v-if="cameraRefs"
         :camera="cameraRefs"
         ref="controlsRef"
         make-default
         v-bind="cameraConfig"
-        :azimuthAngle="angle.azimuthAngle"
-        :polarAngle="angle.polarAngle"
-        :distance="angle.distance"
         @change="OrbitControlsChange"
       />
       <!-- 环境光 -->
@@ -180,11 +177,7 @@ const TresCanvasRef = shallowRef()
 const cameraRefs = shallowRef()
 const lightRef = shallowRef([])
 const controlsRef = shallowRef()
-const angle = ref({
-  azimuthAngle: 0.6, //方位角
-  polarAngle: 1.25, //方位角
-  distance: 25
-})
+
 // 模型
 const config = reactive({
   componentList: [],
@@ -395,26 +388,9 @@ const OrbitControlsChange = (e) => {
   }
   
   try {
-    const { distance, polarAngle, azimuthAngle } = e;
-    
+    const { distance } = e;
     // 安全地更新相机角度设置，忽略类型错误
-    if (cameraConfig) {
-      // 创建新的配置对象，保留原有的fixedPointInspection数据
-      const newCameraConfig = { ...cameraConfig };
-      
-      // 检查是否有实际变化
-      if (newCameraConfig.distancess !== distance || 
-          newCameraConfig.azimuthAngless !== azimuthAngle ||
-          newCameraConfig.polarAngless !== polarAngle) {
-        
-        newCameraConfig.distancess = distance;
-        newCameraConfig.azimuthAngless = azimuthAngle;
-        newCameraConfig.polarAngless = polarAngle;
-        
-        // 由于handleCameraChange也会调用setCameraConfig，这里不重复调用
-        handleCameraChange(distance);
-      }
-    }
+    handleCameraChange(distance);
   } catch (e) {
     console.error('控制器设置错误:', e);
   }
@@ -454,18 +430,12 @@ onMounted(() => {
         // 调用netWorkInternal初始化
         netWorkInternal(2000)
         
-        // 安全地更新角度设置
-        if (cameraConfig) {
-          angle.value = {
-            azimuthAngle: cameraConfig.azimuthAngless || 0.6,
-            polarAngle: cameraConfig.polarAngless || 1.25,
-            distance: cameraConfig.distancess || 25
-          }
-        }
-        
         // 设置相机位置
         try {
+          // 获取控制器实例
           const { instance } = controlsRef.value || {};
+          
+          // 确保有控制器实例和有效的相机配置
           if (instance && cameraConfig && cameraConfig.cameraPosition && cameraConfig.cameraLookAt) {
             // 确保fixedPointInspection对象存在
             if (!cameraConfig.fixedPointInspection) {
@@ -480,31 +450,38 @@ onMounted(() => {
               };
             }
             
-            // 使用Pinia存储控制器实例，不再使用全局变量
+            // 存储控制器实例到Pinia
             chartEditStore.setControlsInstance(instance);
             console.log('已将控制器实例存储到Pinia store');
             
-            // 测试控制器实例是否有setLookAt方法
+            // 使用setLookAt方法设置相机位置和朝向
             if (typeof instance.setLookAt === 'function') {
-              console.log('控制器实例的setLookAt方法可用');
+              // 安全地提取位置和朝向数据
+              const position = [
+                parseFloat(cameraConfig.cameraPosition[0]) || 20,
+                parseFloat(cameraConfig.cameraPosition[1]) || 20,
+                parseFloat(cameraConfig.cameraPosition[2]) || 20
+              ];
               
-              // 移动相机到初始位置
+              const lookAt = [
+                parseFloat(cameraConfig.cameraLookAt[0]) || 0,
+                parseFloat(cameraConfig.cameraLookAt[1]) || 0,
+                parseFloat(cameraConfig.cameraLookAt[2]) || 0
+              ];
+              
+              // 设置相机位置和朝向
               instance.setLookAt(
-                ...(cameraConfig.cameraPosition || [0, 0, 5]),
-                ...(cameraConfig.cameraLookAt || [0, 0, 0]),
-                true
+                position[0], position[1], position[2],
+                lookAt[0], lookAt[1], lookAt[2],
+                true // 启用动画
               );
-              console.log('已将相机移动到初始位置');
+              
+              console.log('已设置初始相机位置和朝向', position, lookAt);
             } else {
               console.error('控制器实例缺少setLookAt方法');
             }
           } else {
-            console.error('控制器实例或相机配置无效:', {
-              hasInstance: !!instance,
-              hasCameraConfig: !!cameraConfig,
-              hasPosition: !!(cameraConfig && cameraConfig.cameraPosition),
-              hasLookAt: !!(cameraConfig && cameraConfig.cameraLookAt)
-            });
+            console.warn('初始化相机位置失败：控制器或配置不可用');
           }
         } catch (e) {
           console.error('设置相机位置出错:', e);
