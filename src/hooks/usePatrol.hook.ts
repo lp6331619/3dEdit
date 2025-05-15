@@ -142,7 +142,7 @@ export function usePatrol() {
         const position = [...(configValue.cameraPosition || [0, 0, 5])]
         const lookAt = [...(configValue.cameraLookAt || [0, 0, 0])]
 
-        // 添加路径点
+        // 添加路径点 - 只添加一个点
         patrolConfig.pathPoints.push({
           position,
           lookAt
@@ -161,7 +161,8 @@ export function usePatrol() {
     }
     return false
   }
-  // 立即同步巡视配置到cameraConfig
+
+  // 立即同步巡视配置到cameraConfig - 确保此函数始终被调用
   const syncPatrolConfigNow = () => {
     // 取消任何延迟同步
     syncPatrolConfigDebounced.cancel()
@@ -171,6 +172,9 @@ export function usePatrol() {
 
     try {
       isConfigSyncing = true
+
+      // 获取控制器实例 - 这是关键，确保控制器实例总是最新的
+      const currentControlsInstance = getControlsInstance()
 
       // 构建巡视配置
       const patrolData = {
@@ -183,13 +187,12 @@ export function usePatrol() {
           speed: patrolConfig.speed
         },
         inPatrolAnimation: patrolConfig.enabled,
-        controlsInstance: cameraConfig.value?.fixedPointInspection?.controlsInstance || null
+        controlsInstance: currentControlsInstance // 使用最新获取的控制器实例
       }
 
       // 更新cameraConfig
       const newConfig = cameraConfig.value ? { ...cameraConfig.value } : {}
       newConfig.fixedPointInspection = patrolData
-      console.log(cameraConfig.value, newConfig, 1111)
 
       // 保存到store
       chartEditStore.setCameraConfig(newConfig)
@@ -372,8 +375,9 @@ export function usePatrol() {
       return
     }
 
-    // 只有一个点，不需要动画
-    if (patrolConfig.pathPoints.length < 2) {
+    // 只有一个点的情况，保持在该点
+    if (patrolConfig.pathPoints.length === 1) {
+      // 无需动画，只移动到该点
       moveToPathPoint(0)
       return
     }
@@ -410,8 +414,10 @@ export function usePatrol() {
     // 设置起点和终点，并深拷贝避免引用问题
     startPoint = patrolConfig.pathPoints[currentIndex]
       ? JSON.parse(JSON.stringify(patrolConfig.pathPoints[currentIndex]))
-      : []
-    endPoint = patrolConfig.pathPoints[nextIndex] ? JSON.parse(JSON.stringify(patrolConfig.pathPoints[nextIndex])) : []
+      : null
+    endPoint = patrolConfig.pathPoints[nextIndex]
+      ? JSON.parse(JSON.stringify(patrolConfig.pathPoints[nextIndex]))
+      : null
 
     // 确保路径点数据格式正确
     if (!startPoint || !endPoint) {
@@ -481,7 +487,7 @@ export function usePatrol() {
             `巡视动画 [${currentStep}/${steps}] 位置=[${posX.toFixed(2)},${posY.toFixed(2)},${posZ.toFixed(2)}]`
           )
         }
-
+        console.log(controls, 111)
         // 确保所有参数都是数字
         controls.setLookAt(
           isNaN(posX) ? 0 : posX,

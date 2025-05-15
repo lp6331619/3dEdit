@@ -11,7 +11,7 @@
       <!-- 坐标格辅助对象 -->
       <TresGridHelper :args="[1000, 100]" />
       <!-- 透视摄像机 -->
-      <TresPerspectiveCamera ref="cameraRefs" :position="[0,0,0]"/>
+      <TresPerspectiveCamera ref="cameraRefs" :position="cameraConfig?.cameraPosition || [0,0,0]"/>
       <CameraControls
         v-if="cameraRefs"
         :camera="cameraRefs"
@@ -405,12 +405,11 @@ onLoop(({ delta, elapsed }) => {
   const now = Date.now();
   const timeSinceLastRender = now - (window._lastRenderTime || 0);
   
-  // 每30ms最多执行一次更新（约33fps，足够流畅且不会过度消耗资源）
-  if (timeSinceLastRender > 30) {
+  // 每50ms最多执行一次更新（约20fps，减少性能压力）
+  if (timeSinceLastRender > 50) {
     window._lastRenderTime = now;
     
-    // 直接执行必要的更新，不使用嵌套的requestAnimationFrame
-    // 更新TWEEN动画
+    // 只执行必要的TWEEN更新
     if (TWEEN) {
       TWEEN.update(elapsed * 1000);
     }
@@ -430,7 +429,7 @@ onMounted(() => {
         // 调用netWorkInternal初始化
         netWorkInternal(2000)
         
-        // 设置相机位置
+        // 设置相机位置和控制器实例
         try {
           // 获取控制器实例
           const { instance } = controlsRef.value || {};
@@ -452,31 +451,55 @@ onMounted(() => {
             
             // 存储控制器实例到Pinia
             chartEditStore.setControlsInstance(instance);
-            console.log('已将控制器实例存储到Pinia store');
+            
+            // 更新摄像机配置中的控制器实例引用
+            const newConfig = { ...cameraConfig };
+            if (!newConfig.fixedPointInspection) {
+              newConfig.fixedPointInspection = {
+                pathPoints: [],
+                config: { mode: 'once', speed: 5 },
+                inPatrolAnimation: false,
+                controlsInstance: instance
+              };
+            } else {
+              newConfig.fixedPointInspection.controlsInstance = instance;
+            }
+            
+            // 保存更新后的配置
+            chartEditStore.setCameraConfig(newConfig);
+            console.log('已将控制器实例存储到Pinia store和cameraConfig中');
             
             // 使用setLookAt方法设置相机位置和朝向
             if (typeof instance.setLookAt === 'function') {
               // 安全地提取位置和朝向数据
               const position = [
-                parseFloat(cameraConfig.cameraPosition[0]) || 20,
-                parseFloat(cameraConfig.cameraPosition[1]) || 20,
-                parseFloat(cameraConfig.cameraPosition[2]) || 20
+                Number(cameraConfig.cameraPosition[0]) || 20,
+                Number(cameraConfig.cameraPosition[1]) || 20,
+                Number(cameraConfig.cameraPosition[2]) || 20
               ];
               
               const lookAt = [
-                parseFloat(cameraConfig.cameraLookAt[0]) || 0,
-                parseFloat(cameraConfig.cameraLookAt[1]) || 0,
-                parseFloat(cameraConfig.cameraLookAt[2]) || 0
+                Number(cameraConfig.cameraLookAt[0]) || 0,
+                Number(cameraConfig.cameraLookAt[1]) || 0,
+                Number(cameraConfig.cameraLookAt[2]) || 0
               ];
               
-              // 设置相机位置和朝向
+              // 立即设置相机位置和朝向，不使用动画，确保初始位置准确
               instance.setLookAt(
                 position[0], position[1], position[2],
                 lookAt[0], lookAt[1], lookAt[2],
-                true // 启用动画
+                false // 禁用动画，确保初始位置准确
               );
               
-              console.log('已设置初始相机位置和朝向', position, lookAt);
+              // 500ms后再次设置位置以确保正确应用
+              setTimeout(() => {
+                instance.setLookAt(
+                  position[0], position[1], position[2],
+                  lookAt[0], lookAt[1], lookAt[2],
+                  false
+                );
+                console.log('已设置初始相机位置和朝向', position, lookAt);
+              }, 500);
             } else {
               console.error('控制器实例缺少setLookAt方法');
             }
@@ -492,6 +515,7 @@ onMounted(() => {
   
   const canvas = document.querySelector('.tres-canvas-container > canvas');
   if (canvas && window) {
+    // 使用passive选项添加事件监听器
     window.addEventListener('message', e => {
       const { evnetTarget, eventName, eventConst, ownerDocument, mockEvent } = e.data || {};
       if (mockEvent && eventName === 'click') {
@@ -517,7 +541,21 @@ onMounted(() => {
       }
       if (evnetTarget && eventName && eventConst && window[eventConst]) {
         try {
-          const clickEvent = new window[eventConst](eventName, evnetTarget);
+          // 添加支持passive选项的事件创建
+          let clickEvent;
+          if (['wheel', 'touchstart', 'touchmove', 'touchend'].includes(eventName)) {
+            // 对于可能阻塞滚动的事件，使用passive选项
+            const eventOptions = {
+              passive: true,
+              bubbles: true,
+              cancelable: true,
+              ...evnetTarget
+            };
+            clickEvent = new window[eventConst](eventName, eventOptions);
+          } else {
+            clickEvent = new window[eventConst](eventName, evnetTarget);
+          }
+          
           if (ownerDocument && canvas.ownerDocument) {
             canvas.ownerDocument.dispatchEvent(clickEvent);
           }
@@ -526,7 +564,19 @@ onMounted(() => {
           console.error('事件分发错误:', e);
         }
       }
-    });
+    }, { passive: true });
+    
+    // 为canvas直接添加事件监听器时使用passive选项
+    canvas.addEventListener('wheel', () => {}, { passive: true });
+    canvas.addEventListener('touchstart', () => {}, { passive: true });
+    canvas.addEventListener('touchmove', () => {}, { passive: true });
+    canvas.addEventListener('touchend', () => {}, { passive: true });
+    
+    // 如果有需要，可以为其他元素也添加passive选项
+    document.addEventListener('wheel', () => {}, { passive: true });
+    document.addEventListener('touchstart', () => {}, { passive: true });
+    document.addEventListener('touchmove', () => {}, { passive: true });
+    document.addEventListener('touchend', () => {}, { passive: true });
   }
 })
 
