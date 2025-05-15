@@ -39,6 +39,7 @@
                 :key="index"
                 @click="moveToPathPoint(index)"
                 class="path-point-item"
+                :class="{'active-point': index === patrolConfig.activePointIndex}"
               >
                 <n-thing>
                   <template #header>
@@ -206,6 +207,30 @@ defineExpose({
 .path-point-item:hover {
   background-color: rgba(0, 0, 0, 0.05);
   border-left: 3px solid #2080f0;
+}
+
+.path-point-item.active-point {
+  background-color: rgba(32, 128, 240, 0.1);
+  border-left: 3px solid #2080f0;
+  box-shadow: 0 0 8px rgba(32, 128, 240, 0.3);
+}
+
+.active-point .preview-icon {
+  color: #18a058; 
+  opacity: 1;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: translateY(-50%) scale(1);
+  }
+  50% {
+    transform: translateY(-50%) scale(1.2);
+  }
+  100% {
+    transform: translateY(-50%) scale(1);
+  }
 }
 
 .path-point {

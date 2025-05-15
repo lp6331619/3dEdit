@@ -35,7 +35,8 @@ export function usePatrol() {
     enabled: false, // 是否启用巡视
     pathPoints: [] as PathPoint[], // 路径点
     currentPointIndex: 0, // 当前巡视点索引
-    direction: 1 // 巡视方向: 1(向前), -1(向后)
+    direction: 1, // 巡视方向: 1(向前), -1(向后)
+    activePointIndex: -1 // 当前活跃的路径点索引，用于UI高亮显示
   })
 
   // 初始化标记
@@ -139,14 +140,35 @@ export function usePatrol() {
       if (cameraConfig.value) {
         // 使用类型断言
         const configValue = cameraConfig.value as any
-        const position = [...(configValue.cameraPosition || [0, 0, 5])]
-        const lookAt = [...(configValue.cameraLookAt || [0, 0, 0])]
+        const position = [...(configValue.cameraPosition || [0, 0, 5])].map(v => Number(v) || 0)
+        const lookAt = [...(configValue.cameraLookAt || [0, 0, 0])].map(v => Number(v) || 0)
+
+        // 检查是否已存在相同或非常接近的点
+        const isTooClose = patrolConfig.pathPoints.some(p => {
+          // 计算位置的欧几里得距离
+          const dx = p.position[0] - position[0]
+          const dy = p.position[1] - position[1]
+          const dz = p.position[2] - position[2]
+          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+          // 如果距离太小，认为是重复点
+          return distance < 0.1
+        })
+
+        if (isTooClose) {
+          console.log('当前位置与已有路径点过近，略微调整位置')
+          // 对位置做些微调整，避免重复
+          position[0] += 0.5 + Math.random() * 0.5
+          position[1] += 0.5 + Math.random() * 0.5
+          position[2] += 0.5 + Math.random() * 0.5
+        }
 
         // 添加路径点 - 只添加一个点
         patrolConfig.pathPoints.push({
           position,
           lookAt
         })
+
         console.log('已添加路径点:', { position, lookAt })
         window['$message']?.success('已添加路径点')
 
@@ -176,12 +198,37 @@ export function usePatrol() {
       // 获取控制器实例 - 这是关键，确保控制器实例总是最新的
       const currentControlsInstance = getControlsInstance()
 
-      // 构建巡视配置
+      // 验证路径点数据的有效性，避免所有点变成相同的情况
+      if (patrolConfig.pathPoints.length > 1) {
+        const firstPoint = JSON.stringify(patrolConfig.pathPoints[0])
+        const allSame = patrolConfig.pathPoints.every(p => JSON.stringify(p) === firstPoint)
+
+        if (allSame) {
+          console.warn('同步前发现所有路径点相同，进行修复')
+
+          // 修复路径点，使每个点都不同
+          patrolConfig.pathPoints = patrolConfig.pathPoints.map((point, index) => {
+            if (index === 0) return point
+
+            // 给不同点添加一些偏移量
+            return {
+              position: [point.position[0] + index * 5, point.position[1] + index, point.position[2] + index * 2],
+              lookAt: [...point.lookAt]
+            }
+          })
+        }
+      }
+
+      // 构建巡视配置 - 确保深度复制每个点
       const patrolData = {
-        pathPoints: patrolConfig.pathPoints.map(point => ({
-          position: [...point.position],
-          lookAt: [...point.lookAt]
-        })),
+        pathPoints: patrolConfig.pathPoints.map((point, index) => {
+          // 确保位置和朝向是完全独立的数组，直接转换为数字
+          const position = Array.isArray(point.position) ? point.position.map(v => Number(v) || 0) : [0, 0, 0]
+
+          const lookAt = Array.isArray(point.lookAt) ? point.lookAt.map(v => Number(v) || 0) : [0, 0, 0]
+
+          return { position, lookAt }
+        }),
         config: {
           mode: patrolConfig.mode,
           speed: patrolConfig.speed
@@ -196,7 +243,11 @@ export function usePatrol() {
 
       // 保存到store
       chartEditStore.setCameraConfig(newConfig)
-      console.log('已立即同步巡视配置到cameraConfig', newConfig)
+      console.log('已立即同步巡视配置到cameraConfig', {
+        pointCount: patrolData.pathPoints.length,
+        mode: patrolData.config.mode,
+        speed: patrolData.config.speed
+      })
     } catch (error) {
       console.error('同步巡视配置出错:', error)
     } finally {
@@ -212,8 +263,46 @@ export function usePatrol() {
       if (cameraConfig.value && index >= 0 && index < patrolConfig.pathPoints.length) {
         // 使用类型断言
         const configValue = cameraConfig.value as any
-        const position = [...(configValue.cameraPosition || [0, 0, 5])]
-        const lookAt = [...(configValue.cameraLookAt || [0, 0, 0])]
+        const position = [...(configValue.cameraPosition || [0, 0, 5])].map(v => Number(v) || 0)
+        const lookAt = [...(configValue.cameraLookAt || [0, 0, 0])].map(v => Number(v) || 0)
+
+        // 检查是否与其他现有点重复（除了自身）
+        const otherPoints = [...patrolConfig.pathPoints]
+        otherPoints.splice(index, 1) // 移除自身，只与其他点比较
+
+        const isTooClose = otherPoints.some(p => {
+          // 计算位置的欧几里得距离
+          const dx = p.position[0] - position[0]
+          const dy = p.position[1] - position[1]
+          const dz = p.position[2] - position[2]
+          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+          // 如果距离太小，认为是重复点
+          return distance < 0.1
+        })
+
+        if (isTooClose) {
+          console.log('当前位置与其他路径点过近，略微调整位置')
+          // 对位置做些微调整，避免重复
+          position[0] += 0.5 + Math.random() * 0.5
+          position[1] += 0.5 + Math.random() * 0.5
+          position[2] += 0.5 + Math.random() * 0.5
+        }
+
+        // 检查相机位置与当前点位置的变化是否足够大
+        const currentPoint = patrolConfig.pathPoints[index]
+        const dx = currentPoint.position[0] - position[0]
+        const dy = currentPoint.position[1] - position[1]
+        const dz = currentPoint.position[2] - position[2]
+        const distanceChanged = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+        // 如果变化很小，可能是UI更新导致的，增加一个小的偏移
+        if (distanceChanged < 0.01) {
+          console.log('相机位置变化太小，添加微小偏移')
+          position[0] += 0.1 + Math.random() * 0.2
+          position[1] += 0.1 + Math.random() * 0.2
+          position[2] += 0.1 + Math.random() * 0.2
+        }
 
         // 更新指定路径点
         patrolConfig.pathPoints[index] = {
@@ -277,6 +366,9 @@ export function usePatrol() {
 
           console.log(`已移动到路径点 ${index + 1}`)
 
+          // 更新活跃点
+          patrolConfig.activePointIndex = index
+
           // 在动画完成后重置状态标记
           setTimeout(() => {
             chartEditStore.setInPatrolAnimation(false)
@@ -319,6 +411,8 @@ export function usePatrol() {
     console.log('开始巡视, 模式:', patrolConfig.mode)
     patrolConfig.currentPointIndex = 0
     patrolConfig.direction = 1
+    // 设置活跃点为当前点
+    patrolConfig.activePointIndex = 0
 
     // 设置状态，防止在巡视过程中更新cameraConfig
     chartEditStore.setInPatrolAnimation(true)
@@ -344,6 +438,8 @@ export function usePatrol() {
   // 停止巡视
   const stopPatrol = () => {
     patrolConfig.enabled = false
+    // 重置活跃点
+    patrolConfig.activePointIndex = -1
 
     // 清除动画定时器
     if (animationTimer !== null) {
@@ -379,6 +475,8 @@ export function usePatrol() {
     if (patrolConfig.pathPoints.length === 1) {
       // 无需动画，只移动到该点
       moveToPathPoint(0)
+      // 设置活跃点
+      patrolConfig.activePointIndex = 0
       return
     }
 
@@ -433,6 +531,8 @@ export function usePatrol() {
 
     // 更新当前点索引
     patrolConfig.currentPointIndex = nextIndex
+    // 更新活跃点
+    patrolConfig.activePointIndex = nextIndex
 
     console.log(`巡视至点 ${nextIndex + 1}, 共 ${patrolConfig.pathPoints.length} 个点`)
 
@@ -699,11 +799,48 @@ export function usePatrol() {
 
       // 加载路径点
       if (Array.isArray(config.fixedPointInspection.pathPoints)) {
-        patrolConfig.pathPoints = config.fixedPointInspection.pathPoints.map(point => ({
-          position: [...(point.position || [0, 0, 0])],
-          lookAt: [...(point.lookAt || [0, 0, 0])]
-        }))
-        console.log('已加载定点巡视数据')
+        // 深度克隆路径点数据，确保每个点都是完全独立的对象
+        patrolConfig.pathPoints = config.fixedPointInspection.pathPoints.map((point, index) => {
+          // 确保位置和朝向是独立的数组，防止引用同一个数组
+          const position = Array.isArray(point.position) ? [...point.position.map(v => Number(v) || 0)] : [0, 0, 0]
+
+          const lookAt = Array.isArray(point.lookAt) ? [...point.lookAt.map(v => Number(v) || 0)] : [0, 0, 0]
+
+          // 添加调试日志
+          console.log(`加载路径点 ${index + 1}:`, { position, lookAt })
+
+          return { position, lookAt }
+        })
+
+        // 检查是否所有点都一样，如果是，则尝试修复
+        if (patrolConfig.pathPoints.length > 1) {
+          const firstPoint = JSON.stringify(patrolConfig.pathPoints[0])
+          const allSame = patrolConfig.pathPoints.every(p => JSON.stringify(p) === firstPoint)
+
+          if (allSame) {
+            console.warn('检测到所有路径点相同，尝试修复...')
+
+            // 如果所有点都一样，修改每个点使其稍微不同
+            patrolConfig.pathPoints = patrolConfig.pathPoints.map((point, index) => {
+              if (index === 0) return point
+
+              // 给不同点添加一些偏移量
+              return {
+                position: [point.position[0] + index * 5, point.position[1] + index, point.position[2] + index * 2],
+                lookAt: [...point.lookAt]
+              }
+            })
+
+            console.log('路径点已修复:', patrolConfig.pathPoints)
+
+            // 立即同步到cameraConfig
+            setTimeout(() => {
+              syncPatrolConfigNow()
+            }, 100)
+          }
+        }
+
+        console.log('已加载定点巡视数据:', patrolConfig.pathPoints.length, '个点')
       }
 
       // 加载巡视状态

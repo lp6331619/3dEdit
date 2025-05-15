@@ -49,6 +49,9 @@
       
       <div class="patrol-info" v-if="pathPoints.length > 0">
         路径点: {{ pathPoints.length }}个
+        <div v-if="isPatrolling && patrolConfig.activePointIndex >= 0" class="current-point-info">
+          当前巡视：第 {{ patrolConfig.activePointIndex + 1 }} 个点
+        </div>
       </div>
       <div v-else>
         <div class="patrol-info patrol-warning">
@@ -58,6 +61,19 @@
           <div class="patrol-button add-point" @click="addCurrentPositionAsPathPoint">
             添加当前位置为路径点
           </div>
+        </div>
+      </div>
+      
+      <!-- 显示简洁的路径点列表 -->
+      <div v-if="pathPoints.length > 0 && isPatrolling" class="patrol-points-list">
+        <div 
+          v-for="(point, index) in pathPoints" 
+          :key="index"
+          class="patrol-point-item"
+          :class="{'active-point': index === patrolConfig.activePointIndex}"
+          @click="moveToPathPoint(index)"
+        >
+          {{ index + 1 }}
         </div>
       </div>
     </div>
@@ -76,7 +92,8 @@ const {
   togglePatrol, 
   getPatrolStatus,
   getPathPoints,
-  addCurrentPositionAsPathPoint
+  addCurrentPositionAsPathPoint,
+  moveToPathPoint
 } = usePatrol()
 
 // 巡视状态
@@ -255,5 +272,55 @@ watch(() => patrolConfig, () => {
 
 .patrol-button.add-point:active {
   background: #629A4E;
+}
+
+.current-point-info {
+  margin-top: 4px;
+  font-weight: bold;
+  color: #409EFF;
+}
+
+.patrol-points-list {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.patrol-point-item {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.patrol-point-item:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.patrol-point-item.active-point {
+  background: #409EFF;
+  box-shadow: 0 0 8px rgba(64, 158, 255, 0.6);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 </style> 
