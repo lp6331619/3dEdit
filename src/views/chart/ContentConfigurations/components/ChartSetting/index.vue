@@ -86,6 +86,7 @@ import MeshConfig from '@/packages/components/Graphic/Model/Mesh/config.vue'
 import { deepClone } from '@/utils'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import * as THREE from 'three'
+import { netWorkInternal ,stopNetWorkInternal} from '@/hooks/netWorkInternal.hook'
 import { storedFileUploadFile } from 'swagger-api/export-api/scada-config'
 import { useMessage } from 'naive-ui'
 const { targetData, chartEditStore } = useTargetData()
@@ -97,6 +98,8 @@ const message = useMessage()
 const editModel = () => {
   chartEditStore.setCurrentModel(deepClone(targetData.value))
   chartEditStore.setTransformControlsStateEnabled(false)
+  chartEditStore.setAllHide(targetData.value.id)
+  stopNetWorkInternal()
 }
 
 const messageBox = ref({
@@ -955,6 +958,9 @@ const submitEditModel = async () => {
     messageBox.value.loadingInstance?.destroy?.()
     message.error(`模型导出失败: ${error instanceof Error ? error.message : '未知错误'}`)
     loading.value = false
+  } finally {
+    chartEditStore.setAllShow()
+    netWorkInternal(2000)
   }
 }
 </script>

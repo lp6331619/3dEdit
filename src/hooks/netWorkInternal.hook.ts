@@ -153,3 +153,7 @@ export const netWorkInternal = async (time: any) => {
   // settimeout = setTimeout(() => {
   // }, 1000)
 }
+export const stopNetWorkInternal = () => {
+  isRun.value = false
+  clearTimeout(timeOut.value)
+}

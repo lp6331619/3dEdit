@@ -514,6 +514,18 @@ export const useChartEditStore = defineStore({
     setTransformControlsStateEnabled(value: any) {
       this.transformControlsState.enabled = value
     },
+    //设置所有隐藏
+    setAllHide(id: any) {
+      this.componentList.forEach((item: any) => {
+        item.status.hide = item.id !== id
+      })
+    },
+    //设置所有显示
+    setAllShow() {
+      this.componentList.forEach((item: any) => {
+        item.status.hide = false
+      })
+    },
     // * 设置目标数据 hover
     setTargetHoverChart(hoverId?: TargetChartType['hoverId']) {
       this.targetChart.hoverId = hoverId
