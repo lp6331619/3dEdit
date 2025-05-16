@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { PropType, computed, shallowRef, watch, ref, nextTick } from 'vue'
+import { PropType, computed, shallowRef, watch, ref, nextTick, onMounted } from 'vue'
 import {
   NameSetting,
   NameSetting2,
@@ -91,10 +91,14 @@ import { useMessage } from 'naive-ui'
 const { targetData, chartEditStore } = useTargetData()
 const getModeList = chartEditStore.getModelList
 const currentModel = computed(() => chartEditStore.getCurrentModel)
+// 变换配置
+const transformControlsState = chartEditStore.getTransformControlsState
 const targetChart = chartEditStore.getTargetChart
 const loading = ref(false)
 const message = useMessage()
 const editModel = () => {
+  transformControlsState.en
+  chartEditStore.setTransformControlsStateEnabled(false)
   chartEditStore.setCurrentModel(deepClone(targetData.value))
 }
 const messageBox = ref({
@@ -955,6 +959,66 @@ const submitEditModel = async () => {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  // 添加渲染循环检测
+  if (typeof window !== 'undefined') {
+    window._renderLoopDetector = {
+      rafCount: 0,
+      lastCheck: performance.now(),
+      timers: []
+    };
+    
+    // 替换原始requestAnimationFrame以进行监控
+    const originalRAF = window.requestAnimationFrame;
+    window.requestAnimationFrame = function(callback) {
+      window._renderLoopDetector.rafCount++;
+      const id = originalRAF.call(window, (timestamp) => {
+        // 移除计时器
+        window._renderLoopDetector.timers = 
+          window._renderLoopDetector.timers.filter(t => t.id !== id);
+        callback(timestamp);
+      });
+      
+      // 记录此调用
+      window._renderLoopDetector.timers.push({
+        id,
+        stack: new Error().stack,
+        time: performance.now()
+      });
+      
+      return id;
+    };
+    
+    // 每5秒检查一次是否存在多余的渲染循环
+    setInterval(() => {
+      const now = performance.now();
+      const elapsed = now - window._renderLoopDetector.lastCheck;
+      const rafRate = window._renderLoopDetector.rafCount * 1000 / elapsed;
+      
+      // 如果RAF调用频率异常高且GPU使用率低，可能存在多个渲染循环
+      if (rafRate > 120) {
+        console.warn(`检测到异常的requestAnimationFrame调用频率: ${Math.round(rafRate)}次/秒`);
+        console.warn('当前活跃的RAF调用:', window._renderLoopDetector.timers.length);
+        
+        // 打印最早的10个堆栈以帮助调试
+        console.warn('RAF调用堆栈示例:');
+        window._renderLoopDetector.timers.slice(0, 10).forEach((t, i) => {
+          console.warn(`${i+1}:`, t.stack);
+        });
+      }
+      
+      // 重置计数器
+      window._renderLoopDetector.rafCount = 0;
+      window._renderLoopDetector.lastCheck = now;
+    }, 5000);
+  }
+
+  if (window.DeviceOrientationEvent && typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+    // 检测到设备方向传感器API，这可能在某些设备上导致主线程负担
+    window._disableDeviceOrientation = true;
+  }
+});
 </script>
 
 <style lang="scss" scoped>

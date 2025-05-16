@@ -97,6 +97,14 @@ const removeAllOutlines = () => {
   // 清空映射
   currentOutlines.clear();
   
+  // 添加节流控制，减少不必要的循环清理
+  if (window._lastOutlineCleanupTime && 
+      Date.now() - window._lastOutlineCleanupTime < 5000) { // 5秒内不重复全面清理
+    return;
+  }
+  
+  window._lastOutlineCleanupTime = Date.now();
+  
   // 额外检查模型中的所有对象，移除任何可能遗留的轮廓线
   if (modelGroup.value) {
     const outlinesToRemove = [];
@@ -111,15 +119,20 @@ const removeAllOutlines = () => {
       }
     });
     
-    // 移除找到的所有轮廓线
-    outlinesToRemove.forEach((outline) => {
-      if (outline.parent) {
-        console.log('移除额外发现的轮廓线:', outline.uuid);
-        outline.parent.remove(outline);
+    // 只在确实有发现需要移除的对象时才输出日志
+    if (outlinesToRemove.length > 0) {
+      // 移除找到的所有轮廓线
+      outlinesToRemove.forEach((outline) => {
+        if (outline.parent) {
+          outline.parent.remove(outline);
+        }
+      });
+      
+      // 减少控制台输出频率，只在开发环境或数量较多时输出
+      if (process.env.NODE_ENV === 'development' || outlinesToRemove.length > 5) {
+        console.log(`额外清理了 ${outlinesToRemove.length} 个轮廓线对象`);
       }
-    });
-    
-    console.log(`额外清理了 ${outlinesToRemove.length} 个轮廓线对象`);
+    }
   }
 };
 
@@ -837,43 +850,63 @@ onLoop(({ delta }) => {
         twGroup.update();
       }
       
-      // 只在有轮廓线时才进行更新
-      if (currentOutlines.size > 0) {
-        // 优化：使用forEach迭代而不是for循环，避免额外的索引计算
-        currentOutlines.forEach((outline) => {
-          if (outline && outline.targetMesh) {
-            // 更新位置和旋转
-            outline.position.copy(outline.targetMesh.position);
-            outline.rotation.copy(outline.targetMesh.rotation);
-            
-            // 优化：只在有动画数据时更新动画
-            if (outline.animationData) {
-              const data = outline.animationData;
-              
-              // 简单的来回脉冲逻辑
-              data.scale += data.direction;
-              
-              // 达到边界则反转方向
-              if (data.scale >= 1.14) {
-                data.scale = 1.14;
-                data.direction = -0.005;
-              } else if (data.scale <= 1.06) {
-                data.scale = 1.06;
-                data.direction = 0.005;
-              }
-              
-              // 应用脉冲比例
-              outline.scale.copy(outline.targetMesh.scale).multiplyScalar(data.scale);
+      // 只在有轮廓线且没有变换控制器激活时才更新轮廓线
+      // 这样可以在变换操作时减轻GPU负担
+      if (currentOutlines.size > 0 && !window.transformBusy && !window._pauseOutlineUpdate) {
+        // 限制更新频率 - 不需要每帧都更新轮廓线
+        const now = Date.now();
+        if (!window._lastOutlineUpdateTime || now - window._lastOutlineUpdateTime > 100) { // 100ms更新一次
+          window._lastOutlineUpdateTime = now;
+          
+          // 优化：使用forEach迭代而不是for循环，避免额外的索引计算
+          currentOutlines.forEach(outline => {
+            if (outline && outline.object && !outline.object.userData.ignoreOutline) {
+              outline.update();
             }
+          });
+        }
+      }
+      
+      // 清理无效轮廓线，限制清理频率
+      const now = Date.now();
+      if (!window._lastOutlineCleanupTime || now - window._lastOutlineCleanupTime > 1000) { // 每秒清理一次
+        window._lastOutlineCleanupTime = now;
+        
+        let cleanupCount = 0;
+        const invalidOutlines = [];
+        
+        // 标记无效的轮廓线
+        currentOutlines.forEach(outline => {
+          if (!outline || !outline.object || !outline.parent) {
+            invalidOutlines.push(outline);
+            cleanupCount++;
           }
         });
+        
+        // 移除无效的轮廓线
+        invalidOutlines.forEach(outline => {
+          currentOutlines.delete(outline);
+          // 移除轮廓线
+          if (outline.parent) {
+            outline.parent.remove(outline);
+          }
+          // 释放资源
+          if (outline.dispose) {
+            outline.dispose();
+          }
+        });
+        
+        // 仅在实际进行了清理时才输出日志
+        if (cleanupCount > 0) {
+          console.log(`额外清理了${cleanupCount}个轮廓线对象`);
+        }
       }
       
       // 重置节流标志
       window.requestAnimationFrameThrottled = false;
     });
   }
-})
+});
 
 // 清理AuxScene图层
 const cleanupAuxScenes = (model) => {
