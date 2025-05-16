@@ -237,7 +237,6 @@ watch(
           }
         });
       })
-      console.log(config.componentList, componentListRef.value, '更新组件')
     })
   },
   { deep: true, immediate: true }
@@ -348,7 +347,6 @@ const ControlsStateMouseDown = (isMove) => {
       );
     }
   } catch (error) {
-    console.error('变换控制器处理错误:', error);
   } finally {
     // 如果是代理盒子，可以在操作结束后考虑从场景中移除，避免重复创建太多代理盒子
     // 暂不移除，防止TransformControls出错
@@ -367,7 +365,6 @@ const cleanupTransformControls = () => {
     const proxyBox = transformRef.value;
     if (proxyBox.parent) {
       proxyBox.parent.remove(proxyBox);
-      console.log('已从场景中移除代理盒子');
     }
   }
   
@@ -379,7 +376,6 @@ const cleanupTransformControls = () => {
 const handleCameraChange = debounce((distance) => {
   // 如果在巡视动画中，跳过更新cameraConfig
   if (chartEditStore.getInPatrolAnimation === true) {
-    console.log('巡视动画中，跳过相机配置更新');
     return;
   }
   
@@ -402,7 +398,6 @@ const handleCameraChange = debounce((distance) => {
       }
     }
   } catch (e) {
-    console.error('相机设置错误:', e);
   }
 }, 300);
 
@@ -424,7 +419,6 @@ const OrbitControlsChange = (e) => {
     // 安全地更新相机角度设置，忽略类型错误
     handleCameraChange(distance);
   } catch (e) {
-    console.error('控制器设置错误:', e);
   }
 }
 
@@ -499,7 +493,6 @@ onMounted(() => {
             
             // 保存更新后的配置
             chartEditStore.setCameraConfig(newConfig);
-            console.log('已将控制器实例存储到Pinia store和cameraConfig中');
             
             // 使用setLookAt方法设置相机位置和朝向
             if (typeof instance.setLookAt === 'function') {
@@ -530,16 +523,12 @@ onMounted(() => {
                   lookAt[0], lookAt[1], lookAt[2],
                   false
                 );
-                console.log('已设置初始相机位置和朝向', position, lookAt);
               }, 500);
             } else {
-              console.error('控制器实例缺少setLookAt方法');
             }
           } else {
-            console.warn('初始化相机位置失败：控制器或配置不可用');
           }
         } catch (e) {
-          console.error('设置相机位置出错:', e);
         }
       }
     })
@@ -593,7 +582,6 @@ onMounted(() => {
           }
           canvas.dispatchEvent(clickEvent);
         } catch (e) {
-          console.error('事件分发错误:', e);
         }
       }
     }, { passive: true });

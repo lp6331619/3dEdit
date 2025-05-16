@@ -73,7 +73,6 @@ export const dragHandle = async (e: DragEvent, contentBoxRef: any) => {
     chartEditStore.setTargetSelectChart(newComponent.id)
     loadingFinish()
   } catch (error) {
-    console.log(error, '拉近编辑区里的报错')
     loadingError()
     window['$message'].warning(`图表正在研发中, 敬请期待...`)
   }
@@ -383,9 +382,7 @@ export const useMouseHandle = () => {
         }
         document.removeEventListener('mousemove', mousemove)
         document.removeEventListener('mouseup', mouseup)
-      } catch (err) {
-        console.log(err)
-      }
+      } catch (err) {}
     }
 
     document.addEventListener('mousemove', mousemove)

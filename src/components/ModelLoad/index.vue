@@ -114,12 +114,10 @@ const removeAllOutlines = () => {
     // 移除找到的所有轮廓线
     outlinesToRemove.forEach((outline) => {
       if (outline.parent) {
-        console.log('移除额外发现的轮廓线:', outline.uuid);
         outline.parent.remove(outline);
       }
     });
     
-    console.log(`额外清理了 ${outlinesToRemove.length} 个轮廓线对象`);
   }
 };
 
@@ -171,13 +169,11 @@ watch(selectedMeshId, (newId, oldId) => {
           // 添加简单的脉冲动画
           createPulseAnimation(outline);
           
-          console.log('为mesh添加了新的轮廓线:', child.uuid);
         }
       }
     });
     
     if (!meshFound) {
-      console.warn('没有找到UUID为', newId, '的网格，无法添加轮廓线');
     }
   }
 }, { immediate: true });
@@ -185,7 +181,6 @@ watch(selectedMeshId, (newId, oldId) => {
 // 加载模型
 const loadModel = async (url) => {
   if (!url) {
-    console.error('模型URL为空，无法加载模型')
     return
   }
   
@@ -209,18 +204,15 @@ const loadModel = async (url) => {
       url,
       (gltf) => {
         try {
-          console.log('模型加载成功:', gltf)
           
           // 提取模型根对象
           const model = gltf.scene
           
           if (!model) {
-            console.error('模型加载失败：场景对象为空')
             isLoading.value = false
             return
           }
           
-          console.log('原始加载模型结构:', model);
           
           // 检查模型层级结构并修复空的Object3D问题
           const fixEmptyObject3D = (parent) => {
@@ -245,7 +237,6 @@ const loadModel = async (url) => {
                   child.children.length === 0 &&
                   !child.isMesh) {
                 
-                console.warn('检测到空的Object3D对象，将被移除:', child.uuid);
                 parent.remove(child);
                 i--; // 由于删除了元素，索引需要回退
                 hasFixed = true;
@@ -257,12 +248,10 @@ const loadModel = async (url) => {
           
           // 执行修复
           if (fixEmptyObject3D(model)) {
-            console.log('已修复空的Object3D对象');
           }
           
           // 检查模型是否为空模型 (children数组为空)
           if (!model.children || model.children.length === 0) {
-            console.warn('加载的模型children数组为空，这可能导致问题')
             // 添加一个占位符子对象，防止后续处理失败
             const placeholderGroup = new THREE.Group()
             placeholderGroup.name = "PlaceholderForEmptyModel"
@@ -281,17 +270,14 @@ const loadModel = async (url) => {
           
           // 如果模型是从我们的应用导出的，尝试从extras中提取贴图配置
           if (gltf.parser && gltf.parser.json && gltf.parser.json.extras) {
-            console.log('检测到模型中包含额外配置数据:', gltf.parser.json.extras)
             
             // 提取贴图和材质配置
             if (gltf.parser.json.extras.textures) {
               extractedConfig.textures = gltf.parser.json.extras.textures
-              console.log('提取贴图配置:', extractedConfig.textures)
             }
             
             if (gltf.parser.json.extras.materials) {
               extractedConfig.materials = gltf.parser.json.extras.materials
-              console.log('提取材质配置:', extractedConfig.materials)
             }
             
             // 合并其他配置
@@ -300,7 +286,6 @@ const loadModel = async (url) => {
                 ...extractedConfig,
                 ...gltf.parser.json.extras.modelConfig
               }
-              console.log('合并模型配置:', gltf.parser.json.extras.modelConfig)
             }
             
             // 提取贴图URL列表
@@ -312,7 +297,6 @@ const loadModel = async (url) => {
                 const url = gltf.parser.json.extras.textureURLs[uuid]
                 if (!extractedConfig.textures[uuid]) extractedConfig.textures[uuid] = {}
                 extractedConfig.textures[uuid].mapUrl = url
-                console.log(`从模型中恢复贴图URL:`, uuid, url)
               })
             }
           }
@@ -327,7 +311,6 @@ const loadModel = async (url) => {
                 const url = model.userData.textureURLs[uuid]
                 if (!extractedConfig.textures[uuid]) extractedConfig.textures[uuid] = {}
                 extractedConfig.textures[uuid].mapUrl = url
-                console.log(`从模型userData提取贴图URL:`, uuid, url)
               })
             }
             
@@ -337,20 +320,17 @@ const loadModel = async (url) => {
                 ...extractedConfig,
                 ...model.userData.fullConfig
               }
-              console.log('从userData合并完整配置:', model.userData.fullConfig)
             }
             
             // 从materials和textures字段提取
             if (model.userData.materials) {
               if (!extractedConfig.materials) extractedConfig.materials = {}
               extractedConfig.materials = {...extractedConfig.materials, ...model.userData.materials}
-              console.log('从userData提取材质配置:', model.userData.materials)
             }
             
             if (model.userData.textures) {
               if (!extractedConfig.textures) extractedConfig.textures = {}
               extractedConfig.textures = {...extractedConfig.textures, ...model.userData.textures}
-              console.log('从userData提取贴图配置:', model.userData.textures)
             }
           }
           
@@ -369,7 +349,6 @@ const loadModel = async (url) => {
                   ...child.userData.material
                 };
                 
-                console.log(`从对象userData提取材质配置:`, uuid);
               }
               
               // 从对象的userData.materialMapUrl中提取
@@ -378,7 +357,6 @@ const loadModel = async (url) => {
                 if (!extractedConfig.textures[uuid]) extractedConfig.textures[uuid] = {};
                 
                 extractedConfig.textures[uuid].mapUrl = child.userData.materialMapUrl;
-                console.log(`从对象userData提取贴图URL:`, uuid, child.userData.materialMapUrl);
               }
               
               // 从材质的userData中提取
@@ -388,7 +366,6 @@ const loadModel = async (url) => {
                   if (!extractedConfig.textures[uuid]) extractedConfig.textures[uuid] = {};
                   
                   extractedConfig.textures[uuid].mapUrl = child.material.userData.mapUrl;
-                  console.log(`从材质userData提取贴图URL:`, uuid, child.material.userData.mapUrl);
                 }
               }
             }
@@ -396,7 +373,6 @@ const loadModel = async (url) => {
           
           // 将模型存储到全局状态
           chartEditStore.setModelList(props.data.id, modelGroup.value)
-          console.log(getModelList, '模型文件')
           
           // 应用配置（优先使用提取的配置）
           const configToApply = {
@@ -406,7 +382,6 @@ const loadModel = async (url) => {
           
           updateModelWithConfig(configToApply)
         } catch (innerError) {
-          console.error('处理模型时出错:', innerError)
         } finally {
           // 完成加载
           isLoading.value = false
@@ -414,7 +389,6 @@ const loadModel = async (url) => {
       },
       // 加载进度回调
       (xhr) => {
-        // console.log(`模型加载进度: ${Math.floor((xhr.loaded / xhr.total) * 100)}%`)
         // message.success(`模型加载进度: ${Math.floor((xhr.loaded / xhr.total) * 100)}%`)
         // 使用naive-ui的message来展示加载进度，只显示一个信息，不断更新它
         const l = Math.floor((xhr.loaded / xhr.total) * 100)
@@ -435,12 +409,10 @@ const loadModel = async (url) => {
       
       },
       (error) => {
-        console.error('加载模型失败:', error)
         isLoading.value = false
       }
     )
   } catch (error) {
-    console.error('加载模型失败:', error)
     isLoading.value = false
   }
 }
@@ -455,7 +427,6 @@ const updateModelWithConfig = (config) => {
   }
   
   window.updateModelDebounce = setTimeout(() => {
-    console.log('应用模型配置', config);
     
     // 创建材质映射以减少重复遍历查找
     const materialConfigs = config.materials || {};
@@ -522,7 +493,6 @@ const updateModelWithConfig = (config) => {
                                   child.material.type === 'MeshPhongMaterial';
             
             if (!supportTexture) {
-              console.log('材质不支持贴图，升级为MeshStandardMaterial');
               // 创建新的标准材质，保留原有的基本属性
               const newMaterial = new THREE.MeshStandardMaterial({
                 color: child.material.color,
@@ -549,7 +519,6 @@ const updateModelWithConfig = (config) => {
             // 检查缓存中是否已存在这个贴图
             if (textureCache[baseTextureUrl]) {
               // 直接使用缓存的贴图
-              console.log('使用缓存的贴图:', baseTextureUrl);
               child.material.map = textureCache[baseTextureUrl];
               child.material.needsUpdate = true;
               
@@ -560,7 +529,6 @@ const updateModelWithConfig = (config) => {
               child.material.userData.mapUrl = baseTextureUrl;
             } else {
               // 使用loadTexture函数加载贴图
-              console.log('加载贴图:', baseTextureUrl);
               loadTexture(baseTextureUrl, 'map', child, textureLoader, textureCache);
             }
           }
@@ -654,7 +622,6 @@ const loadTexture = (url, textureType, mesh, loader, cache) => {
     },
     undefined,
     (error) => {
-      console.error(`加载${textureType}贴图失败:`, error);
       
       // 错误恢复：尝试使用Image元素加载
       const img = new Image();
@@ -683,7 +650,6 @@ const loadTexture = (url, textureType, mesh, loader, cache) => {
       };
       
       img.onerror = () => {
-        console.error('备用方法也无法加载图片');
       };
       
       img.src = url;
@@ -886,7 +852,6 @@ const cleanupAuxScenes = (model) => {
       model.children[0].type === 'Group' && 
       (!model.children[0].name || model.children[0].name === '')) {
     
-    console.log('检测到导入模型可能有嵌套问题:');
     
     // 检查内部子对象
     const innerGroup = model.children[0];
@@ -900,7 +865,6 @@ const cleanupAuxScenes = (model) => {
     });
     
     if (hasAuxScene) {
-      console.log('确认存在典型的AuxScene嵌套问题，将进行修复');
       
       // 收集所有非AuxScene的子对象
       const validChildren = [];
@@ -911,7 +875,6 @@ const cleanupAuxScenes = (model) => {
       });
       
       if (validChildren.length > 0) {
-        console.log(`找到${validChildren.length}个有效子对象，将替换当前结构`);
         
         // 移除无名组
         model.remove(innerGroup);
@@ -922,7 +885,6 @@ const cleanupAuxScenes = (model) => {
           model.add(child);
         });
         
-        console.log('导入模型结构已修复');
         
         // 已经处理了特殊情况，可以返回了
         return;
@@ -958,20 +920,17 @@ const cleanupAuxScenes = (model) => {
   });
   
   if (objectsToRemove.length > 0) {
-    console.log(`找到 ${objectsToRemove.length} 个需要移除的辅助对象`);
     
     // 从模型中移除辅助对象
     objectsToRemove.forEach(obj => {
       if (obj.parent) {
         obj.parent.remove(obj);
-        console.log('从模型中移除辅助对象:', obj.name || obj.type);
       }
     });
   }
   
   // 添加保护：如果清理后模型为空，添加一个新的空组以避免问题
   if (!model.children || model.children.length === 0) {
-    console.warn('清理后模型变为空，添加保护组');
     const safetyGroup = new THREE.Group();
     safetyGroup.name = "SafetyGroup";
     model.add(safetyGroup);

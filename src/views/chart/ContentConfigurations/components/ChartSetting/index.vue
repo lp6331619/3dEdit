@@ -138,7 +138,6 @@ watch(
 )
 const cancelEditModel = () => {
   try {
-    console.log('开始清理编辑状态...')
 
     // 先清除当前选中的mesh，避免在currentModel被清除后出现引用错误
     currentMesh.value = null
@@ -148,21 +147,17 @@ const cancelEditModel = () => {
       // 清除当前选择的模型部件
       chartEditStore.setTargetSelectChart(undefined)
     } catch (selectError) {
-      console.warn('清除模型选择状态时出错:', selectError)
     }
 
     // 使用更长的延迟，确保UI组件有足够时间处理状态变化
     setTimeout(() => {
       try {
-        console.log('清除模型编辑状态')
         // 清除当前模型编辑状态
         chartEditStore.setCurrentModel(undefined)
       } catch (modelError) {
-        console.error('清除模型编辑状态时出错:', modelError)
       }
     }, 50) // 使用更长的延迟
   } catch (error) {
-    console.error('取消编辑时出错:', error)
     // 如果出错，尝试强制重置状态
   chartEditStore.setCurrentModel(undefined)
     chartEditStore.setTargetSelectChart(undefined)
@@ -171,7 +166,6 @@ const cancelEditModel = () => {
 const handleMaterialUpdate = (newMaterial: any) => {
   if (!currentModel.value?.id || !currentMesh.value) return
 
-  console.log('更新材质:', newMaterial)
 
   // 获取当前模型对象
   const obj = getModeList[currentModel.value.id]
@@ -222,7 +216,6 @@ const handleMaterialUpdate = (newMaterial: any) => {
 
     // 处理贴图 - 这部分是关键的改进区域
     if (newMaterial.map) {
-      console.log(`处理贴图:`, typeof newMaterial.map === 'string' ? newMaterial.map : '(Texture对象)')
 
       // 保存URL到各个位置
       const textureUrl = typeof newMaterial.map === 'string' ? newMaterial.map : newMaterial.mapUrl || ''
@@ -241,11 +234,9 @@ const handleMaterialUpdate = (newMaterial: any) => {
         }
         currentModel.value.option.materials[meshUUID].mapUrl = textureUrl
 
-        console.log(`保存贴图URL到配置:`, meshUUID, textureUrl)
 
         // 加载贴图
         const applyTexture = (url: string) => {
-          console.log(`开始加载贴图:`, url)
 
           // 创建纹理加载器
           const textureLoader = new THREE.TextureLoader()
@@ -254,7 +245,6 @@ const handleMaterialUpdate = (newMaterial: any) => {
           textureLoader.load(
             url,
             texture => {
-              console.log('贴图加载成功')
               // 设置纹理参数
               texture.wrapS = THREE.RepeatWrapping
               texture.wrapT = THREE.RepeatWrapping
@@ -276,11 +266,9 @@ const handleMaterialUpdate = (newMaterial: any) => {
 
               // 不再需要查找模型组件实例，已使用双向绑定同步贴图
 
-              console.log('贴图已应用并保存到各个位置')
             },
             undefined,
             error => {
-              console.error('贴图加载失败:', error)
               // 尝试备用方法
               tryBackupMethod(url)
             }
@@ -289,12 +277,10 @@ const handleMaterialUpdate = (newMaterial: any) => {
 
         // 备用加载方法
         const tryBackupMethod = (url: string) => {
-          console.log('尝试备用方法加载贴图')
           const img = new Image()
           img.crossOrigin = 'anonymous'
 
           img.onload = () => {
-            console.log('通过Image元素成功加载图片')
             const texture = new THREE.Texture(img)
 
             // 保存URL到texture的userData
@@ -314,7 +300,6 @@ const handleMaterialUpdate = (newMaterial: any) => {
           }
 
           img.onerror = () => {
-            console.error('备用方法也无法加载图片')
             createFallbackTexture()
           }
 
@@ -323,7 +308,6 @@ const handleMaterialUpdate = (newMaterial: any) => {
 
         // 创建备用纹理
         const createFallbackTexture = () => {
-          console.log('创建纯色纹理作为备用')
           try {
             const canvas = document.createElement('canvas')
             canvas.width = 1
@@ -335,9 +319,7 @@ const handleMaterialUpdate = (newMaterial: any) => {
             const fallbackTexture = new THREE.CanvasTexture(canvas)
             currentMesh.value.material.map = fallbackTexture
             currentMesh.value.material.needsUpdate = true
-            console.log('应用纯色纹理作为备用')
           } catch (e) {
-            console.error('创建备用纹理失败:', e)
           }
         }
 
@@ -362,7 +344,6 @@ const handleMaterialUpdate = (newMaterial: any) => {
         delete currentMesh.value.material.userData.mapUrl
       }
 
-      console.log('已移除贴图')
     }
   }
 
@@ -441,7 +422,6 @@ const analyzeModelStructure = (model: any, depth = 0, maxDepth = 3): string => {
 
 const submitEditModel = async () => {
   if (!currentModel.value?.id) {
-    console.error('当前模型ID不存在，无法保存')
     message.error('当前模型ID不存在，无法保存')
     return
   }
@@ -511,7 +491,6 @@ const submitEditModel = async () => {
             child.name.includes('ExportedModel') ||
             child.name.includes('CleanedModel')
           )) {
-          console.log('找到导出标记层:', child.name, '- 将提升其子对象');
           
           // 收集所有子对象
           const grandchildren = [...child.children];
@@ -526,7 +505,6 @@ const submitEditModel = async () => {
           
           // 移除空的标记层
           node.remove(child);
-          console.log('已移除导出标记层，并保留了其中的', grandchildren.length, '个子对象');
           hasModified = true;
         }
         // 检查无名称的空组，通常是第二层嵌套
@@ -544,7 +522,6 @@ const submitEditModel = async () => {
           }
           
           if (hasEmptyObject3D) {
-            console.log('检测到无名空组内有空的Object3D，准备提取内容');
             
             // 收集所有非空的子对象
             const validGrandchildren = [];
@@ -566,7 +543,6 @@ const submitEditModel = async () => {
               
               // 移除空的无名组
               node.remove(child);
-              console.log('已移除无名空组和空Object3D，并提升了', validGrandchildren.length, '个有效子对象');
               hasModified = true;
             }
           }
@@ -594,7 +570,6 @@ const submitEditModel = async () => {
           node.children[0].type === 'Group' && 
           (!node.children[0].name || node.children[0].name === '')) {
         
-        console.log('检测到可能有嵌套问题的结构:', node);
         
         // 检查内部子对象
         const innerGroup = node.children[0];
@@ -612,7 +587,6 @@ const submitEditModel = async () => {
         });
         
         if (auxSceneChildren.length > 0 && validChildren.length > 0) {
-          console.log('检测到典型的AuxScene嵌套问题，将进行修复');
           
           // 移除当前子对象
           node.remove(innerGroup);
@@ -623,7 +597,6 @@ const submitEditModel = async () => {
             node.add(child);
           });
           
-          console.log('结构修复完成，从嵌套中提取了', validChildren.length, '个有效对象');
           hasFixed = true;
         }
       }
@@ -638,7 +611,6 @@ const submitEditModel = async () => {
           // 检查是否是AuxScene层或CleanedModel层
           if (child.name && (child.name.includes('AuxScene') || child.name.includes('CleanedModel'))) {
             objectsToRemove.push(child)
-            console.log('将移除AuxScene或CleanedModel对象:', child.name)
           }
           // 检查是否是轮廓线
           else if (
@@ -653,7 +625,6 @@ const submitEditModel = async () => {
               (child as any).material.color.getHex() === 0x00ffff)
           ) {
             objectsToRemove.push(child)
-            console.log('将移除轮廓线对象:', child.uuid)
           }
           // 检查是否是空的Object3D对象 - 这是关键修复
           else if (
@@ -663,7 +634,6 @@ const submitEditModel = async () => {
             !(child as any).isMesh
           ) {
             objectsToRemove.push(child)
-            console.warn('将移除空的Object3D对象:', child.uuid)
           }
           // 检查是否存在Group > 空Object3D的嵌套结构
           else if (
@@ -684,7 +654,6 @@ const submitEditModel = async () => {
                 // 找到空的Object3D
                 hasEmptyObject3D = true;
                 objectsToRemove.push(grandchild);
-                console.log('检测到Group内的空Object3D，将移除:', grandchild.uuid);
               } else {
                 // 收集有效子对象
                 validGrandchildren.push(grandchild);
@@ -703,7 +672,6 @@ const submitEditModel = async () => {
           try {
             node.remove(obj);
           } catch (e) {
-            console.warn('移除对象失败:', e);
           }
         }
       }
@@ -711,7 +679,6 @@ const submitEditModel = async () => {
 
     // 递归清理模型 - 只移除辅助对象，保留原始结构
     cleanupModel(exportModel)
-    console.log('已清理模型，保留原始层级结构')
 
     // 重要：不进行扁平化处理，保留模型的原始层级结构
     // 这样导出后的模型会保持与原始模型相同的层级关系
@@ -719,11 +686,9 @@ const submitEditModel = async () => {
 
     // 再次检查exportModel是否有效
     if (!exportModel.children || exportModel.children.length === 0) {
-      console.error('清理后的模型children数组为空，尝试恢复')
 
       // 尝试恢复：如果清理后模型为空，但原始模型不为空，直接使用克隆的原始模型
       if (model.children && model.children.length > 0) {
-        console.log('使用未清理的原始模型进行恢复')
         // 重新克隆模型，但不进行清理
         exportModel = model.clone()
 
@@ -806,7 +771,6 @@ const submitEditModel = async () => {
       })
     }
 
-    console.log('清理并准备导出的模型:', exportModel)
 
     // 5. 导出为GLTF格式
     // 再次确保UI能更新显示loading状态
@@ -831,7 +795,6 @@ const submitEditModel = async () => {
         
         // 如果子节点名称包含ExportedModel
         if (child.name && child.name.includes('ExportedModel')) {
-          console.log(`找到包含ExportedModel的层: "${child.name}"`);
           
           // 收集所有孙子节点
           const grandchildren = [...child.children];
@@ -840,24 +803,20 @@ const submitEditModel = async () => {
           grandchildren.forEach(grandchild => {
             child.remove(grandchild);
             node.add(grandchild);
-            console.log(`已将子对象 "${grandchild.name || '未命名'}" 提升一级`);
           });
           
           // 移除包含ExportedModel的空节点
           node.remove(child);
-          console.log(`已删除包含ExportedModel的层 "${child.name}"`);
         }
       }
     };
     
     // 执行最终清理 - 删除所有包含ExportedModel的层
     removeExportedModelLayers(exportModel);
-    console.log('已完成最终清理，删除了所有包含ExportedModel的层');
     
     const exportedGltf: any = await new Promise<any>((resolve, reject) => {
       // 最终导出安全检查
       if (!exportModel.children || exportModel.children.length === 0) {
-        console.error('准备导出时发现模型为空，添加占位组')
         // 添加占位组，确保导出不会完全失败
         const placeholderGroup = new THREE.Group()
         placeholderGroup.name = "EmergencyPlaceholder"
@@ -926,8 +885,6 @@ const submitEditModel = async () => {
     // 7. 更新组件配置
     // 注意：这里使用modelComponentId，不使用targetChart.selectId
     // 因为targetChart.selectId是当前选中的mesh ID，而我们需要更新模型组件ID
-    console.log('当前选中的mesh ID:', targetChart.selectId)
-    console.log('使用的模型组件ID:', modelComponentId)
 
     // 更新组件配置
     chartEditStore.setComponentListAll(modelComponentId, modelUrl, 'meshConfig')
@@ -949,12 +906,10 @@ const submitEditModel = async () => {
         // 最后关闭loading状态
         loading.value = false
       } catch (error) {
-        console.error('退出编辑模式时出错:', error)
         loading.value = false
       }
     }, 500)
   } catch (error) {
-    console.error('模型导出失败:', error)
     messageBox.value.loadingInstance?.destroy?.()
     message.error(`模型导出失败: ${error instanceof Error ? error.message : '未知错误'}`)
     loading.value = false

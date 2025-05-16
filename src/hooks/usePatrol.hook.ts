@@ -90,43 +90,36 @@ export function usePatrol() {
       try {
         // @ts-ignore
         if (!tresCanvas.__vue__) {
-          console.warn('Canvas元素上没有__vue__属性')
           return null
         }
 
         // @ts-ignore
         const exposed = tresCanvas.__vue__?.exposed
         if (!exposed) {
-          console.warn('Canvas的Vue实例上没有exposed属性')
           return null
         }
 
         const controlsRef = exposed.controlsRef
         if (!controlsRef) {
-          console.warn('exposed对象上没有controlsRef属性')
           return null
         }
 
         const instance = controlsRef.instance
         if (!instance) {
-          console.warn('controlsRef上没有instance属性')
           return null
         }
 
         // 找到控制器后保存到Pinia中，避免重复查找
-        console.log('已从DOM找到控制器实例，保存到Pinia中')
         chartEditStore.setControlsInstance(instance)
         return instance
       } catch (err) {
         if (!loggedError) {
-          console.error('获取控制器实例出错:', err)
           loggedError = true // 防止重复输出错误
         }
         return null
       }
     } catch (err) {
       if (!loggedError) {
-        console.error('控制器实例获取出错:', err)
         loggedError = true
       }
       return null
@@ -156,7 +149,6 @@ export function usePatrol() {
         })
 
         if (isTooClose) {
-          console.log('当前位置与已有路径点过近，略微调整位置')
           // 对位置做些微调整，避免重复
           position[0] += 0.5 + Math.random() * 0.5
           position[1] += 0.5 + Math.random() * 0.5
@@ -169,7 +161,6 @@ export function usePatrol() {
           lookAt
         })
 
-        console.log('已添加路径点:', { position, lookAt })
         window['$message']?.success('已添加路径点')
 
         // 立即同步到cameraConfig
@@ -178,7 +169,6 @@ export function usePatrol() {
         return true
       }
     } catch (error) {
-      console.error('添加路径点失败:', error)
       window['$message']?.error('添加路径点失败')
     }
     return false
@@ -204,8 +194,6 @@ export function usePatrol() {
         const allSame = patrolConfig.pathPoints.every(p => JSON.stringify(p) === firstPoint)
 
         if (allSame) {
-          console.warn('同步前发现所有路径点相同，进行修复')
-
           // 修复路径点，使每个点都不同
           patrolConfig.pathPoints = patrolConfig.pathPoints.map((point, index) => {
             if (index === 0) return point
@@ -243,13 +231,7 @@ export function usePatrol() {
 
       // 保存到store
       chartEditStore.setCameraConfig(newConfig)
-      console.log('已立即同步巡视配置到cameraConfig', {
-        pointCount: patrolData.pathPoints.length,
-        mode: patrolData.config.mode,
-        speed: patrolData.config.speed
-      })
     } catch (error) {
-      console.error('同步巡视配置出错:', error)
     } finally {
       setTimeout(() => {
         isConfigSyncing = false
@@ -282,7 +264,6 @@ export function usePatrol() {
         })
 
         if (isTooClose) {
-          console.log('当前位置与其他路径点过近，略微调整位置')
           // 对位置做些微调整，避免重复
           position[0] += 0.5 + Math.random() * 0.5
           position[1] += 0.5 + Math.random() * 0.5
@@ -298,7 +279,6 @@ export function usePatrol() {
 
         // 如果变化很小，可能是UI更新导致的，增加一个小的偏移
         if (distanceChanged < 0.01) {
-          console.log('相机位置变化太小，添加微小偏移')
           position[0] += 0.1 + Math.random() * 0.2
           position[1] += 0.1 + Math.random() * 0.2
           position[2] += 0.1 + Math.random() * 0.2
@@ -310,7 +290,6 @@ export function usePatrol() {
           lookAt
         }
 
-        console.log(`已更新路径点 ${index + 1}:`, { position, lookAt })
         window['$message']?.success(`已更新路径点 ${index + 1}`)
 
         // 立即同步到cameraConfig
@@ -319,7 +298,6 @@ export function usePatrol() {
         return true
       }
     } catch (error) {
-      console.error('更新路径点失败:', error)
       window['$message']?.error('更新路径点失败')
     }
     return false
@@ -329,7 +307,6 @@ export function usePatrol() {
   const removePathPoint = (index: number) => {
     if (index >= 0 && index < patrolConfig.pathPoints.length) {
       patrolConfig.pathPoints.splice(index, 1)
-      console.log(`已删除路径点 ${index + 1}`)
       window['$message']?.success(`已删除路径点 ${index + 1}`)
 
       // 立即同步到cameraConfig
@@ -348,8 +325,6 @@ export function usePatrol() {
         // 使用控制器移动相机
         const controls = getControlsInstance()
         if (controls) {
-          console.log('移动到路径点:', point.position, point.lookAt)
-
           // 临时设置状态标记，防止在动画过程中更新cameraConfig
           chartEditStore.setInPatrolAnimation(true)
 
@@ -364,8 +339,6 @@ export function usePatrol() {
             true // 开启过渡动画
           )
 
-          console.log(`已移动到路径点 ${index + 1}`)
-
           // 更新活跃点
           patrolConfig.activePointIndex = index
 
@@ -378,12 +351,10 @@ export function usePatrol() {
           window['$message']?.success(`已切换到路径点 ${index + 1}`)
           return true
         } else {
-          console.warn('未找到相机控制器实例')
           window['$message']?.error('未找到相机控制器实例')
         }
       }
     } catch (error) {
-      console.error('移动到路径点失败:', error)
       window['$message']?.error('移动到路径点失败')
     }
     return false
@@ -401,14 +372,12 @@ export function usePatrol() {
   // 启动巡视
   const startPatrol = () => {
     if (patrolConfig.pathPoints.length < 1) {
-      console.log('没有路径点，至少需要1个点')
       patrolConfig.enabled = false
       window['$message']?.warning('没有路径点，至少需要1个点')
       return false
     }
 
     patrolConfig.enabled = true
-    console.log('开始巡视, 模式:', patrolConfig.mode)
     patrolConfig.currentPointIndex = 0
     patrolConfig.direction = 1
     // 设置活跃点为当前点
@@ -451,7 +420,6 @@ export function usePatrol() {
     // 清除状态标记
     chartEditStore.setInPatrolAnimation(false)
 
-    console.log('巡视已停止')
     return true
   }
 
@@ -519,7 +487,6 @@ export function usePatrol() {
 
     // 确保路径点数据格式正确
     if (!startPoint || !endPoint) {
-      console.error('路径点数据无效')
       stopPatrol()
       return
     }
@@ -534,8 +501,6 @@ export function usePatrol() {
     // 更新活跃点
     patrolConfig.activePointIndex = nextIndex
 
-    console.log(`巡视至点 ${nextIndex + 1}, 共 ${patrolConfig.pathPoints.length} 个点`)
-
     // 设置状态，防止在巡视过程中更新cameraConfig
     chartEditStore.setInPatrolAnimation(true)
 
@@ -546,7 +511,6 @@ export function usePatrol() {
   // 创建一个动画帧函数
   const animateFrame = () => {
     if (!patrolConfig.enabled || !startPoint || !endPoint) {
-      console.log('动画被中止')
       return
     }
 
@@ -583,9 +547,6 @@ export function usePatrol() {
       try {
         // 只在开始和结束时输出日志，减少日志量
         if (currentStep === 1 || currentStep === steps) {
-          console.log(
-            `巡视动画 [${currentStep}/${steps}] 位置=[${posX.toFixed(2)},${posY.toFixed(2)},${posZ.toFixed(2)}]`
-          )
         }
         // 确保所有参数都是数字
         controls.setLookAt(
@@ -598,13 +559,11 @@ export function usePatrol() {
           false // 关闭过渡动画，由我们自己控制
         )
       } catch (error) {
-        console.error('移动相机出错:', error)
         // 发生错误时停止巡视，避免卡死
         stopPatrol()
         return
       }
     } else {
-      console.error('无法执行动画帧：控制器实例为空')
       // 没有控制器时也停止巡视
       stopPatrol()
       return
@@ -638,13 +597,11 @@ export function usePatrol() {
 
     // 如果是在巡视动画中，跳过配置更新
     if (patrolConfig.enabled && chartEditStore.getInPatrolAnimation) {
-      console.log('巡视动画中，跳过配置同步')
       return
     }
 
     try {
       isConfigSyncing = true
-      console.log('开始同步巡视配置到cameraConfig')
 
       // 构建完整的巡视配置对象，使用深拷贝避免引用问题
       const completeConfig = {
@@ -668,13 +625,7 @@ export function usePatrol() {
 
       // 更新相机配置
       chartEditStore.setCameraConfig(newCameraConfig)
-      console.log('已同步巡视配置到cameraConfig:', {
-        pathPoints: completeConfig.pathPoints.length,
-        mode: completeConfig.config.mode,
-        speed: completeConfig.config.speed
-      })
     } catch (error) {
-      console.error('同步巡视配置出错:', error)
     } finally {
       // 延迟重置同步状态标记
       setTimeout(() => {
@@ -736,7 +687,6 @@ export function usePatrol() {
 
       // 更新配置
       chartEditStore.setCameraConfig(currentConfig)
-      console.log('巡视参数已更新并同步:', { mode: patrolConfig.mode, speed: patrolConfig.speed })
     }
 
     return true
@@ -759,8 +709,6 @@ export function usePatrol() {
     // 立即同步到cameraConfig
     syncPatrolConfigNow()
 
-    console.log('已更新所有路径点:', { count: patrolConfig.pathPoints.length })
-
     return true
   }
 
@@ -770,13 +718,11 @@ export function usePatrol() {
       isConfigSyncing = true
       const config = cameraConfig.value
       if (!config) {
-        console.warn('相机配置不存在')
         return
       }
 
       // 确保fixedPointInspection对象存在
       if (!config.fixedPointInspection) {
-        console.log('初始化定点巡视配置结构')
         // 通过store的action来初始化 fixedPointInspection 对象
         chartEditStore.setPatrolConfig({
           mode: 'once',
@@ -806,7 +752,6 @@ export function usePatrol() {
           const lookAt = Array.isArray(point.lookAt) ? [...point.lookAt.map(v => Number(v) || 0)] : [0, 0, 0]
 
           // 添加调试日志
-          console.log(`加载路径点 ${index + 1}:`, { position, lookAt })
 
           return { position, lookAt }
         })
@@ -817,8 +762,6 @@ export function usePatrol() {
           const allSame = patrolConfig.pathPoints.every(p => JSON.stringify(p) === firstPoint)
 
           if (allSame) {
-            console.warn('检测到所有路径点相同，尝试修复...')
-
             // 如果所有点都一样，修改每个点使其稍微不同
             patrolConfig.pathPoints = patrolConfig.pathPoints.map((point, index) => {
               if (index === 0) return point
@@ -830,16 +773,12 @@ export function usePatrol() {
               }
             })
 
-            console.log('路径点已修复:', patrolConfig.pathPoints)
-
             // 立即同步到cameraConfig
             setTimeout(() => {
               syncPatrolConfigNow()
             }, 100)
           }
         }
-
-        console.log('已加载定点巡视数据:', patrolConfig.pathPoints.length, '个点')
       }
 
       // 加载巡视状态
@@ -851,7 +790,6 @@ export function usePatrol() {
       // 标记已初始化
       isInitialized.value = true
     } catch (error) {
-      console.error('初始化巡视数据出错:', error)
     } finally {
       // 重置同步状态
       setTimeout(() => {
@@ -898,7 +836,6 @@ export function usePatrol() {
     setTimeout(() => {
       // 先确保fixedPointInspection存在
       if (!cameraConfig.value?.fixedPointInspection) {
-        console.log('初始化fixedPointInspection结构')
         chartEditStore.setPatrolConfig({
           mode: 'once',
           speed: 5
@@ -909,7 +846,6 @@ export function usePatrol() {
       setTimeout(() => {
         // 加载控制器实例
         const controls = getControlsInstance()
-        console.log('巡视控制器状态:', controls ? '可用' : '不可用')
 
         // 加载配置数据
         initFromCameraConfig()
