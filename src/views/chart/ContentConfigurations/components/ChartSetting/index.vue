@@ -96,7 +96,9 @@ const loading = ref(false)
 const message = useMessage()
 const editModel = () => {
   chartEditStore.setCurrentModel(deepClone(targetData.value))
+  chartEditStore.setTransformControlsStateEnabled(false)
 }
+
 const messageBox = ref({
   loadingInstance: null
 })

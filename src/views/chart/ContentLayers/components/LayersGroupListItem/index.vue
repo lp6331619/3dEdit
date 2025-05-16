@@ -181,7 +181,6 @@ const mousedownHandle = (
 ) => {
   e.preventDefault()
   e.stopPropagation()
-
   onClickOutSide()
   const idf = componentInstance.id || id
    //点击图层 选中组件开启变换控制器

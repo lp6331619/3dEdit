@@ -587,7 +587,6 @@ export function usePatrol() {
             `巡视动画 [${currentStep}/${steps}] 位置=[${posX.toFixed(2)},${posY.toFixed(2)},${posZ.toFixed(2)}]`
           )
         }
-        console.log(controls, 111)
         // 确保所有参数都是数字
         controls.setLookAt(
           isNaN(posX) ? 0 : posX,

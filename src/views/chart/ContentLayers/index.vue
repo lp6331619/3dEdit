@@ -91,7 +91,14 @@ import { CreateComponentType, CreateComponentGroupType } from '@/packages/index.
 import { MenuOptionsItemType } from '@/views/chart/hooks/useContextMenu.hook.d'
 import { useContextMenu } from '@/views/chart/hooks/useContextMenu.hook'
 import { MenuEnum, MouseEventButton, WinKeyboard, MacKeyboard } from '@/enums/editPageEnum'
-
+import {
+  loadingStart,
+  loadingFinish,
+  loadingError,
+  setComponentPosition,
+  JSONParse,
+  generateProxyObject
+} from '@/utils'
 import { LayersListItem } from './components/LayersListItem/index'
 import { LayersGroupListItem } from './components/LayersGroupListItem/index'
 import { LayersGroupListMeshItem } from './components/LayersGroupListMeshItem/index'
@@ -104,7 +111,7 @@ const chartLayoutStore = useChartLayoutStore()
 const chartEditStore = useChartEditStore()
 const { handleContextMenu, onClickOutSide } = useContextMenu()
 
-const { transformRef } = storeToRefs(chartEditStore)
+const { transformRef,canvasRefs } = storeToRefs(chartEditStore)
 const transformControlsState = chartEditStore.getTransformControlsState
 const componentListRef = chartEditStore.getComponentListRef
 const currentModel = computed(() => chartEditStore.getCurrentModel)
@@ -114,7 +121,6 @@ const layerModeList = [
 ]
 const layerList = ref<any>([])
 const layerMode = ref<LayerModeEnum>(chartLayoutStore.getLayerType)
-
 // 逆序展示
 const reverseList = computed(() => {
   const list: Array<CreateComponentType | CreateComponentGroupType> = cloneDeep(chartEditStore.getComponentList)
@@ -202,8 +208,28 @@ const mousedownHandle = (e: MouseEvent, item: CreateComponentType) => {
   const id = item.id
   //点击图层 选中组件开启变换控制器
   const itemRef = componentListRef.value.find((e: any) => e?.onlyId === id)
-  transformRef.value = itemRef 
-  transformControlsState.enabled = true 
+
+  if(item.type === 'GLTFModel'){
+     const originalObject = itemRef
+      if (!originalObject) return
+      if (!originalObject.onlyId && item.id) {
+        originalObject.onlyId = item.id
+      }
+      // Get the scene from canvas context
+      let scene = null
+      if (canvasRefs.value && canvasRefs.value.context) {
+        scene = canvasRefs.value.context.scene?.value
+      }
+      // Use proxy box instead of complex model, and add it to the scene
+      const proxyBox = generateProxyObject(originalObject, scene)
+      // Set transform controller target to proxy box
+      transformRef.value = proxyBox
+      transformControlsState.enabled = true 
+  }else{
+    transformRef.value = itemRef 
+    transformControlsState.enabled = true 
+  }
+
   // 多选
   if (e.buttons === MouseEventButton.LEFT && window.$KeyboardActive?.ctrl) {
     // 若已选中，则去除

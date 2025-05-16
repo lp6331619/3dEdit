@@ -243,18 +243,25 @@ watch(
   { deep: true, immediate: true }
 )
 const clickFun = (e) => {
-  emits('click', e)
+  // 先清理当前的变换控制器和代理盒子
+  cleanupTransformControls();
+  
+  // 完整触发原始点击事件
+  emits('click', e);
 }
 const clickRight = (e, item) => {
+  // 先清理当前的变换控制器和代理盒子
+  cleanupTransformControls();
+  
+  // 触发右键点击事件
   emits('rightClick', {
     e: e,
     item: item
-  })
-  transformControlsState.enabled = false
-  transformRef.value = null
+  });
 }
 const fitToBox = (current) => {
-  controlsRef.value?.instance?.fitToBox(current, true)
+  const target = current.userData?.originalModel || current;
+  controlsRef.value?.instance?.fitToBox(target, true);
 }
 
 //获取当前选中组件
@@ -270,48 +277,47 @@ watch(
 const { onLoop, onBeforeLoop, onAfterLoop, pause, resume } = useRenderLoop()
 // 变换控制器 - 简化版本，专注于解决性能问题
 const ControlsStateMouseDown = (isMove) => {
-  // 防止重复处理
   if (!transformRef.value || isMove) return;
-  
-  // 标记为变换中，避免其他渲染循环干扰
   window.transformBusy = true;
-  
+
   try {
-    // 安全地获取对象，忽略属性类型检查错误
-    const item = chartEditStore.getComponentListItem(transformRef.value.onlyId);
+    const isProxy = transformRef.value.userData?.isProxy;
+    const targetModel = isProxy ? transformRef.value.userData.originalModel : transformRef.value;
+
+    const item = chartEditStore.getComponentListItem(targetModel.onlyId);
     if (!item) {
       window.transformBusy = false;
       return;
     }
-    
-    // 尝试获取变换信息
+
+    // 获取变换信息
     let position = [0, 0, 0];
     let scale = [1, 1, 1];
     let rotation = [0, 0, 0];
-    
+
     if (transformRef.value.position) {
       try {
         const pos = transformRef.value.position.clone();
         position = pos.toArray();
       } catch (e) {}
     }
-    
+
     if (transformRef.value.scale) {
       try {
         const scl = transformRef.value.scale.clone();
         scale = scl.toArray();
       } catch (e) {}
     }
-    
+
     if (transformRef.value.rotation) {
       try {
         const rot = transformRef.value.rotation.clone();
         rotation = rot.toArray();
       } catch (e) {}
     }
-    
-    // 处理HTML元素特殊情况
-    if (item.type === 'Html' && transformControlsState.mode === 'scale') {
+
+     // 处理HTML元素特殊情况
+     if (item.type === 'Html' && transformControlsState.mode === 'scale') {
       const [x, y, z] = scale;
       if (item.attr && item.attr.w != null && item.attr.h != null) {
         useChartEditStore().setComponentList(
@@ -321,7 +327,14 @@ const ControlsStateMouseDown = (isMove) => {
         );
       }
     }
-    
+
+    // 同步到原始模型
+    if (isProxy) {
+      targetModel.position.copy(transformRef.value.position);
+      targetModel.scale.copy(transformRef.value.scale);
+      targetModel.rotation.copy(transformRef.value.rotation);
+    }
+
     // 更新组件位置信息
     if (item.id) {
       useChartEditStore().setComponentList(
@@ -337,12 +350,31 @@ const ControlsStateMouseDown = (isMove) => {
   } catch (error) {
     console.error('变换控制器处理错误:', error);
   } finally {
-    // 延迟重置状态，给变换操作完成的时间
+    // 如果是代理盒子，可以在操作结束后考虑从场景中移除，避免重复创建太多代理盒子
+    // 暂不移除，防止TransformControls出错
+    // 注意：移除后需要取消transformRef的引用
+    
     setTimeout(() => {
       window.transformBusy = false;
     }, 50);
   }
-}
+};
+
+// 清理变换控制器和代理盒子
+const cleanupTransformControls = () => {
+  if (transformRef.value && transformRef.value.userData?.isProxy) {
+    // 如果是代理盒子，并且有场景引用，则从场景中移除
+    const proxyBox = transformRef.value;
+    if (proxyBox.parent) {
+      proxyBox.parent.remove(proxyBox);
+      console.log('已从场景中移除代理盒子');
+    }
+  }
+  
+  // 禁用变换控制器
+  transformControlsState.enabled = false;
+  transformRef.value = null;
+};
 
 const handleCameraChange = debounce((distance) => {
   // 如果在巡视动画中，跳过更新cameraConfig
@@ -579,8 +611,6 @@ onMounted(() => {
     document.addEventListener('touchend', () => {}, { passive: true });
   }
 })
-
-
 </script>
 
 <style>

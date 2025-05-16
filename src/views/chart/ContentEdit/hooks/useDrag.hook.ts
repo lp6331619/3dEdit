@@ -6,10 +6,18 @@ import { CreateComponentType, CreateComponentGroupType, PickCreateComponentType 
 import { useContextMenu } from '@/views/chart/hooks/useContextMenu.hook'
 import { useChartEditStore } from '@/store/modules/chartEditStore/chartEditStore'
 import { EditCanvasTypeEnum } from '@/store/modules/chartEditStore/chartEditStore.d'
-import { loadingStart, loadingFinish, loadingError, setComponentPosition, JSONParse } from '@/utils'
+import {
+  loadingStart,
+  loadingFinish,
+  loadingError,
+  setComponentPosition,
+  JSONParse,
+  generateProxyObject
+} from '@/utils'
 import { throttle, cloneDeep } from 'lodash'
 import { storeToRefs } from 'pinia'
 import { Raycaster, Vector2, Vector3, Plane } from 'three'
+import * as THREE from 'three'
 
 const chartEditStore = useChartEditStore()
 const { transformRef, canvasRefs } = storeToRefs(chartEditStore)
@@ -70,7 +78,7 @@ export const dragHandle = async (e: DragEvent, contentBoxRef: any) => {
     window['$message'].warning(`图表正在研发中, 敬请期待...`)
   }
 }
-// 3d点击事件
+// 3d click event
 export const TresCanvaClick = async (obj: any) => {
   const { item, e, isGltf } = obj
   const id = item.id
@@ -85,16 +93,35 @@ export const TresCanvaClick = async (obj: any) => {
         chartEditStore.setTargetSelectChart(e.object.uuid)
       }, 100)
       return
-    } else {
-      transformRef.value = item.el
-      transformControlsState.enabled = true
     }
+
+    // 使用item.el获取整个模型对象，而不是e.object（可能只是模型内的某个mesh）
+    const originalObject = item.el
+    if (!originalObject) return
+
+    // Ensure it has onlyId for identification
+    if (!originalObject.onlyId && item.id) {
+      originalObject.onlyId = item.id
+    }
+    // Get the scene from canvas context
+    let scene = null
+    if (canvasRefs.value && canvasRefs.value.context) {
+      scene = canvasRefs.value.context.scene?.value
+    }
+
+    // Use proxy box instead of complex model, and add it to the scene
+    const proxyBox = generateProxyObject(originalObject, scene)
+
+    // Set transform controller target to proxy box
+    transformRef.value = proxyBox
+    transformControlsState.enabled = true
   } else if (!currentModel.value) {
+    // Set other normal models directly
     transformRef.value = item.el
     transformControlsState.enabled = true
   }
-  onClickOutSide()
-  // 若此时按下了 CTRL, 表示多选
+
+  // Select target chart
   setTimeout(() => {
     chartEditStore.setTargetSelectChart(id)
   }, 100)
