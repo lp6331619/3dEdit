@@ -192,12 +192,10 @@ export function usePatrol() {
       if (patrolConfig.pathPoints.length > 1) {
         const firstPoint = JSON.stringify(patrolConfig.pathPoints[0])
         const allSame = patrolConfig.pathPoints.every(p => JSON.stringify(p) === firstPoint)
-
         if (allSame) {
           // 修复路径点，使每个点都不同
           patrolConfig.pathPoints = patrolConfig.pathPoints.map((point, index) => {
             if (index === 0) return point
-
             // 给不同点添加一些偏移量
             return {
               position: [point.position[0] + index * 5, point.position[1] + index, point.position[2] + index * 2],
@@ -209,14 +207,14 @@ export function usePatrol() {
 
       // 构建巡视配置 - 确保深度复制每个点
       const patrolData = {
-        pathPoints: patrolConfig.pathPoints.map((point, index) => {
-          // 确保位置和朝向是完全独立的数组，直接转换为数字
-          const position = Array.isArray(point.position) ? point.position.map(v => Number(v) || 0) : [0, 0, 0]
-
-          const lookAt = Array.isArray(point.lookAt) ? point.lookAt.map(v => Number(v) || 0) : [0, 0, 0]
-
-          return { position, lookAt }
-        }),
+        pathPoints: [
+          ...patrolConfig.pathPoints.map((point, index) => {
+            // 确保位置和朝向是完全独立的数组，直接转换为数字
+            const position = Array.isArray(point.position) ? point.position.map(v => Number(v) || 0) : [0, 0, 0]
+            const lookAt = Array.isArray(point.lookAt) ? point.lookAt.map(v => Number(v) || 0) : [0, 0, 0]
+            return { position, lookAt }
+          })
+        ],
         config: {
           mode: patrolConfig.mode,
           speed: patrolConfig.speed
@@ -230,6 +228,7 @@ export function usePatrol() {
       newConfig.fixedPointInspection = patrolData
 
       // 保存到store
+      console.log('保存到', newConfig.fixedPointInspection)
       chartEditStore.setCameraConfig(newConfig)
     } catch (error) {
     } finally {
@@ -760,19 +759,16 @@ export function usePatrol() {
         if (patrolConfig.pathPoints.length > 1) {
           const firstPoint = JSON.stringify(patrolConfig.pathPoints[0])
           const allSame = patrolConfig.pathPoints.every(p => JSON.stringify(p) === firstPoint)
-
           if (allSame) {
             // 如果所有点都一样，修改每个点使其稍微不同
             patrolConfig.pathPoints = patrolConfig.pathPoints.map((point, index) => {
               if (index === 0) return point
-
               // 给不同点添加一些偏移量
               return {
                 position: [point.position[0] + index * 5, point.position[1] + index, point.position[2] + index * 2],
                 lookAt: [...point.lookAt]
               }
             })
-
             // 立即同步到cameraConfig
             setTimeout(() => {
               syncPatrolConfigNow()

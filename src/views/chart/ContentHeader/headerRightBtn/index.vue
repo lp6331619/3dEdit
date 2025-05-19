@@ -39,6 +39,7 @@ const router = useRouter()
 // 使用computed获取巡视状态，确保响应式更新
 const inPatrolAnimation = computed(() => chartEditStore.getInPatrolAnimation)
 
+
 // 预览
 const previewHandle = () => {
   // 巡视过程中不允许预览
@@ -76,7 +77,6 @@ const sendHandle = () => {
     }
   })
 }
-
 //保存
 const saveData = ({ path = '', previewId = '' }) => {
   // 巡视过程中不允许保存
@@ -126,6 +126,7 @@ const saveData = ({ path = '', previewId = '' }) => {
           }
           // 新建
           if (f.indexOf('id_') == 0) {
+            console.log(chartEditStore.getStorageInfo(),'新建')
             const res = await modelCreate(query)
             if ((res as any).code == 0) {
               ElMessage({
@@ -136,6 +137,7 @@ const saveData = ({ path = '', previewId = '' }) => {
             }
           } else {
             // 更新
+            console.log(chartEditStore.getStorageInfo(),'更新')
             const res = await modelUpdate(f, query)
             if ((res as any).code == 0) {
               ElMessage({
