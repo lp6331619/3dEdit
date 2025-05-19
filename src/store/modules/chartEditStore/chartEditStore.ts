@@ -243,7 +243,9 @@ export const useChartEditStore = defineStore({
     //模型列表
     modelList: {},
     // 当前编辑的模型
-    currentModel: undefined
+    currentModel: undefined,
+    //巡视点数据
+    pathPoints: []
   }),
   getters: {
     getMousePosition(): MousePositionType {
@@ -327,6 +329,9 @@ export const useChartEditStore = defineStore({
         return false
       }
       return this.cameraConfig.fixedPointInspection.inPatrolAnimation
+    },
+    getPathPoints() {
+      return this.pathPoints
     }
   },
   actions: {
@@ -476,6 +481,7 @@ export const useChartEditStore = defineStore({
       this.lightSetting = lightSetting
       this.requestGlobalConfig = requestGlobalConfig
       this.cameraConfig = cameraConfig
+      this.pathPoints = cameraConfig.fixedPointInspection?.pathPoints
       componentList.map((item: any) => {
         this.addComponentList(item)
       })
@@ -571,6 +577,9 @@ export const useChartEditStore = defineStore({
     //设置摄像头数据
     setCameraConfig(data: any) {
       this.cameraConfig = data
+    },
+    setPathPoints(pathPoints: any) {
+      this.pathPoints = pathPoints
     },
     //设置整个画布ref
     setCanvasRefs(data: any) {

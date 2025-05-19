@@ -230,6 +230,7 @@ export function usePatrol() {
       // 保存到store
       console.log('保存到', newConfig.fixedPointInspection)
       chartEditStore.setCameraConfig(newConfig)
+      chartEditStore.setPathPoints(patrolData.pathPoints)
     } catch (error) {
     } finally {
       setTimeout(() => {

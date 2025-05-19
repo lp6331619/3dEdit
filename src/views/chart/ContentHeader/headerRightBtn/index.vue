@@ -32,13 +32,19 @@ import { cloneDeep } from 'lodash'
 import { ElLoading, ElMessage } from 'element-plus'
 const { BrowsersOutlineIcon, SendIcon, AnalyticsIcon } = icon.ionicons5
 const chartEditStore = useChartEditStore()
-const { editCanvasConfig, canvasRefs } = storeToRefs(chartEditStore)
+const { editCanvasConfig, canvasRefs,pathPoints } = storeToRefs(chartEditStore)
 const routerParamsInfo = useRoute()
 const router = useRouter()
 
 // 使用computed获取巡视状态，确保响应式更新
 const inPatrolAnimation = computed(() => chartEditStore.getInPatrolAnimation)
-
+watch(
+  () => pathPoints.value,
+  async (e) => {
+   console.log(e,'摄像头数据修改')
+  },
+  { deep: true, immediate: true }
+)
 
 // 预览
 const previewHandle = () => {
@@ -116,12 +122,15 @@ const saveData = ({ path = '', previewId = '' }) => {
         const file = new File([blob], 'canvas-image.png', { type: blob.type })
         console.log(file) // 现在你有了一个 File 对象
         // 你可以在这里上传文件或进行其他操作
+        const config = chartEditStore.getStorageInfo()
+        config.cameraConfig.fixedPointInspection.pathPoints = pathPoints.value
+        console.log(config,'提交的数据')
         try {
           // 上传封面图片
           const res = await storedFileUploadFile({ file: file })
           const query = {
             name: editCanvasConfig.value.projectName,
-            config: JSONStringify(chartEditStore.getStorageInfo() || []),
+            config: JSONStringify(config || {}),
             imageUrl: res.data
           }
           // 新建
