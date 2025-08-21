@@ -1,8 +1,30 @@
 <template>
   <div class="go-text-box">
     <div class="content">
-      <template v-if="option.isDynamics">
+      <!-- <template v-if="option.isDynamics">
         <div v-for="(item, i) in option.dataList" :key="item.cnlNum">{{ item.label }}:{{ item.val }}</div>
+      </template> -->
+      <template v-if="option.isDynamics">
+        <div
+          v-for="(item, i) in option.dataList"
+          class="flex"
+          :style="{
+            alignItems: 'center',
+            justifyContent: item.justifyContent
+          }"
+          :key="item.cnlNum"
+        >
+          {{ item.label }}:
+          <div
+            :style="{
+              color: item.actionColor || item.cnlColor,
+              fontSize: item.cnlSize + 'px',
+              margin: '0!important'
+            }"
+          >
+            {{ item.val }} {{ item.unit }}
+          </div>
+        </div>
       </template>
       <template v-else>
         <span style="cursor: pointer; white-space: pre-wrap" v-if="link" @click="click">{{ option.dataset }}</span>

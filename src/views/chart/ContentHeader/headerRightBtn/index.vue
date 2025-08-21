@@ -1,11 +1,11 @@
 <template>
   <n-space class="go-mt-0" :wrap="false">
-    <n-button 
-      v-for="item in comBtnList" 
-      :key="item.title" 
-      :type="item.type" 
-      :disabled="inPatrolAnimation" 
-      ghost 
+    <n-button
+      v-for="item in comBtnList"
+      :key="item.title"
+      :type="item.type"
+      :disabled="inPatrolAnimation"
+      ghost
       @click="item.event"
     >
       <template #icon>
@@ -32,7 +32,7 @@ import { cloneDeep } from 'lodash'
 import { ElLoading, ElMessage } from 'element-plus'
 const { BrowsersOutlineIcon, SendIcon, AnalyticsIcon } = icon.ionicons5
 const chartEditStore = useChartEditStore()
-const { editCanvasConfig, canvasRefs,pathPoints } = storeToRefs(chartEditStore)
+const { editCanvasConfig, canvasRefs, pathPoints } = storeToRefs(chartEditStore)
 const routerParamsInfo = useRoute()
 const router = useRouter()
 
@@ -40,8 +40,8 @@ const router = useRouter()
 const inPatrolAnimation = computed(() => chartEditStore.getInPatrolAnimation)
 watch(
   () => pathPoints.value,
-  async (e) => {
-   console.log(e,'摄像头数据修改')
+  async e => {
+    console.log(e, '巡视点变化')
   },
   { deep: true, immediate: true }
 )
@@ -100,7 +100,7 @@ const saveData = ({ path = '', previewId = '' }) => {
     loadingInstance1.close()
     return
   }
-  
+
   const { renderer, scene, camera } = context
   // 设置preserveDrawingBuffer
   if (renderer.value) {
@@ -108,15 +108,15 @@ const saveData = ({ path = '', previewId = '' }) => {
     renderer.value.render(scene.value, camera.value)
     renderer.value.resetState()
   }
-  
+
   nextTick(async () => {
     const canvas = document.querySelector('.tres-canvas-container canvas')
     if (!canvas) {
       loadingInstance1.close()
       return
     }
-    
-    (canvas as HTMLCanvasElement).toBlob(async blob => {
+
+    ;(canvas as HTMLCanvasElement).toBlob(async blob => {
       if (blob) {
         // 创建一个 File 对象
         const file = new File([blob], 'canvas-image.png', { type: blob.type })
@@ -124,7 +124,7 @@ const saveData = ({ path = '', previewId = '' }) => {
         // 你可以在这里上传文件或进行其他操作
         const config = chartEditStore.getStorageInfo()
         config.cameraConfig.fixedPointInspection.pathPoints = pathPoints.value
-        console.log(config,'提交的数据')
+        console.log(config, '提交的数据')
         try {
           // 上传封面图片
           const res = await storedFileUploadFile({ file: file })
@@ -135,7 +135,7 @@ const saveData = ({ path = '', previewId = '' }) => {
           }
           // 新建
           if (f.indexOf('id_') == 0) {
-            console.log(chartEditStore.getStorageInfo(),'新建')
+            console.log(chartEditStore.getStorageInfo(), '新建')
             const res = await modelCreate(query)
             if ((res as any).code == 0) {
               ElMessage({
@@ -146,7 +146,7 @@ const saveData = ({ path = '', previewId = '' }) => {
             }
           } else {
             // 更新
-            console.log(chartEditStore.getStorageInfo(),'更新')
+            console.log(chartEditStore.getStorageInfo(), '更新')
             const res = await modelUpdate(f, query)
             if ((res as any).code == 0) {
               ElMessage({

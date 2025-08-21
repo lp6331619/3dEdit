@@ -1,5 +1,5 @@
 <template>
-  <collapse-item name="信息" :expanded="true">
+  <!-- <collapse-item name="信息" :expanded="true">
     <setting-item-box name="动态数据" :alone="true">
       <setting-item name=""><n-switch v-model:value="optionData.isDynamics" size="small"></n-switch></setting-item
     ></setting-item-box>
@@ -27,8 +27,8 @@
         </n-input-group>
       </setting-item>
     </setting-item-box>
-  </collapse-item>
-
+  </collapse-item> -->
+  <configBox :optionData="optionData" />
   <collapse-item name="样式" :expanded="true">
     <setting-item-box name="文字">
       <setting-item name="颜色">
@@ -93,7 +93,7 @@
 import { PropType } from 'vue'
 import { option, WritingModeEnum, WritingModeObject, FontWeightEnum, FontWeightObject } from './config'
 import { CollapseItem, SettingItemBox, SettingItem } from '@/components/Pages/ChartItemSetting'
-
+import configBox from '../components/config.vue'
 const props = defineProps({
   optionData: {
     type: Object as PropType<typeof option>,

@@ -57,7 +57,7 @@
       <setting-item name=""><n-switch v-model:value="optionData.isDynamics" size="small"></n-switch></setting-item
     ></setting-item-box>
     <setting-item-box v-if="optionData.isDynamics" name="文字" :alone="true">
-      <setting-item v-for="(item, i) in optionData.dataList" :class="i!==0 && 'pt-20'" :key="i">
+      <setting-item v-for="(item, i) in optionData.dataList" :class="i !== 0 && 'pt-20'" :key="i">
         <div class="flex">
           <n-input v-model:value="item.label" size="small"></n-input>
           <n-input
@@ -85,9 +85,9 @@
             :style="{ width: '80%' }"
             :options="justifyOptions"
           />
-          <n-button class="ml10" @click="item.effectDialogFlag=true" size="small">动作</n-button>
+          <n-button class="ml10" @click="item.effectDialogFlag = true" size="small">动作</n-button>
         </div>
-        <el-dialog 
+        <el-dialog
           destroy-on-close
           :close-on-click-modal="false"
           v-model="item.effectDialogFlag"
@@ -95,8 +95,9 @@
           append-to-body
           width="730"
           z-index="999"
-          title="动作">
-            <Action @close="item.effectDialogFlag=false" :optionData="item"/>
+          title="动作"
+        >
+          <Action @close="item.effectDialogFlag = false" :optionData="item" />
         </el-dialog>
       </setting-item>
     </setting-item-box>
@@ -157,15 +158,14 @@
       </SettingItem>
     </SettingItemBox>
   </CollapseItem>
-
- 
 </template>
 
 <script setup lang="ts">
-import { PropType,ref } from 'vue'
+import { PropType, ref } from 'vue'
 import { CollapseItem, SettingItemBox, SettingItem } from '@/components/Pages/ChartItemSetting'
 const effectDialogFlag = ref(false)
-import {Action} from '@/components/Action'
+import { justifyOptions } from '@/packages/public/chart'
+import { Action } from '@/components/Action'
 const props = defineProps({
   optionData: {
     type: Object,
@@ -177,12 +177,6 @@ const textAlignOptions = [
   { label: '左对齐', value: 'start' },
   { label: '居中', value: 'center' },
   { label: '右对齐', value: 'end' }
-]
-const justifyOptions = [
-  { label: '左对齐', value: 'flex-start' },
-  { label: '居中', value: 'center' },
-  { label: '右对齐', value: 'flex-end' },
-  { label: '边对齐', value: 'space-between' }
 ]
 enum WritingModeEnum {
   HORIZONTAL = '水平',

@@ -22,19 +22,14 @@ import { GoSystemInfo } from '@/components/GoSystemInfo/index'
 import Person from './person.png'
 
 import { icon } from '@/plugins'
-const {
-  ChatboxEllipsesIcon,
-  PersonIcon,
-  LogOutOutlineIcon,
-  SettingsSharpIcon
-} = icon.ionicons5
+const { ChatboxEllipsesIcon, PersonIcon, LogOutOutlineIcon, SettingsSharpIcon } = icon.ionicons5
 
 const t = window['$t']
 
 const modelShowInfo = ref(false)
 const modelShow = ref(false)
 
-// 是否失败 
+// 是否失败
 const fallback = ref(false)
 
 // 用户图标渲染
@@ -50,11 +45,7 @@ const renderUserInfo = () => {
         style: 'margin-right: 12px;',
         src: Person
       }),
-      h('div', null, [
-        h('div', null, [
-          h(NText, { depth: 2 }, { default: () => '奔跑的面条' })
-        ])
-      ])
+      h('div', null, [h('div', null, [h(NText, { depth: 2 }, { default: () => '奔跑的面条' })])])
     ]
   )
 }
@@ -114,7 +105,7 @@ const handleSelect = (key: string) => {
       sysSetHandle()
       break
     case 'logout':
-      logout()
+      // logout()
       break
   }
 }

@@ -22,7 +22,6 @@ import { registryRequest } from 'swagger-api/share'
 import uimIcons from '@iconify/json/json/uim.json'
 import lineMdIcons from '@iconify/json/json/line-md.json'
 import wiIcons from '@iconify/json/json/wi.json'
-import VueVirtualScroller from 'vue-virtual-scroller'
 // 引入全局样式
 import '@/styles/pages/index.scss'
 // 引入动画
@@ -111,7 +110,7 @@ async function appInit() {
   // tresjs注册
   app.use(Tres)
   // 虚拟滚动
-  app.use(VueVirtualScroller)
+  // app.use(VueVirtualScroller)
   // 挂载到页面
   app.mount('#app', true)
 

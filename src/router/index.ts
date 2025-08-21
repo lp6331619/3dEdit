@@ -1,5 +1,5 @@
 import type { App } from 'vue'
-import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHashHistory, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { RedirectRoute } from '@/router/base'
 import { createRouterGuards } from './router-guards'
 import { PageEnum } from '@/enums/pageEnum'
@@ -29,7 +29,7 @@ const RootRoute: Array<RouteRecordRaw> = [
 export const constantRouter: any[] = [LoginRoute, ...RootRoute, RedirectRoute, ReloadRoute]
 
 const router = createRouter({
-  history: createWebHashHistory(''),
+  history: createWebHistory('/3dthreeedit/'),
   routes: constantRouter,
   strict: true
 })

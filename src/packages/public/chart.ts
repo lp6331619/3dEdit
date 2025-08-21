@@ -48,6 +48,13 @@ export const setOption = <T extends typeof VChart | undefined, D>(instance: T, d
     notMerge: notMerge
   })
 }
+
+export const justifyOptions = [
+  { label: '左对齐', value: 'flex-start' },
+  { label: '居中', value: 'center' },
+  { label: '右对齐', value: 'flex-end' },
+  { label: '边对齐', value: 'space-between' }
+]
 /**
  * * 材质列表
  */
@@ -73,10 +80,10 @@ export const materialList = [
     label: '卡通网格材质',
     value: 'MeshToonMaterial'
   },
-  {
-    label: '精灵材质',
-    value: 'SpriteMaterial'
-  },
+  // {
+  //   label: '精灵材质',
+  //   value: 'SpriteMaterial'
+  // },
   // {
   //   label: '深度网格材质',
   //   value: 'MeshDepthMaterial'

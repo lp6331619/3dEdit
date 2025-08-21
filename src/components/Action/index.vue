@@ -115,7 +115,7 @@ import { ref,watch,onMounted,toRaw } from 'vue'
 import {  countVal } from '@/settings/designSetting'
 import {ConditionSelect} from '@/packages/public/chart'
 import markdown from "markdown-it"
-import hljs from "highlight.js"
+import hljs from 'highlight.js/lib/core'
 import {cloneDeep,isEqual} from 'lodash-es'
 import {ELMessage} from 'element-plus'
 import {builderConfig} from '@/elements/index'

@@ -6,11 +6,11 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { createError } from "@/utils";
 import { useStorage } from "@vueuse/core";
-import {
-  apiSessionCreate,
-  apiSessionDelete,
-  apiUsersCurrentList,
-} from "swagger-api";
+// import {
+//   apiSessionCreate,
+//   apiSessionDelete,
+//   apiUsersCurrentList,
+// } from "swagger-api";
 // import { useSettingsStore } from "./settings";
 
 export const useUserStore = defineStore("user", () => {
@@ -31,18 +31,18 @@ export const useUserStore = defineStore("user", () => {
    * @param {LoginData}
    * @returns
    */
-  async function login(loginData) {
-    const { data } = await apiSessionCreate(loginData);
-    user.value.typeSource = data;
-    user.value.accessToken = data.token;
-    await getUserInfo();
-  }
+  // async function login(loginData) {
+  //   const { data } = await apiSessionCreate(loginData);
+  //   user.value.typeSource = data;
+  //   user.value.accessToken = data.token;
+  //   await getUserInfo();
+  // }
 
-  // 获取信息(用户昵称、头像)
-  async function getUserInfo() {
-    const { data } = await apiUsersCurrentList();
-    user.value.info = data;
-  }
+  // // 获取信息(用户昵称、头像)
+  // async function getUserInfo() {
+  //   const { data } = await apiUsersCurrentList();
+  //   user.value.info = data;
+  // }
 
   function clearStore(path) {
     user.value.typeSource = {};
@@ -53,15 +53,15 @@ export const useUserStore = defineStore("user", () => {
     // window.localStorage.clear();
   }
 
-  // user logout
-  function logout() {
-    return apiSessionDelete()
-      .then(clearStore)
-      .catch(() => {
-        clearStore();
-        return Promise.reject(createError("未知原因退出失败,请重新登录！"));
-      });
-  }
+  // // user logout
+  // function logout() {
+  //   return apiSessionDelete()
+  //     .then(clearStore)
+  //     .catch(() => {
+  //       clearStore();
+  //       return Promise.reject(createError("未知原因退出失败,请重新登录！"));
+  //     });
+  // }
   function setToken(token) {
     user.value.accessToken = token
   }
@@ -88,9 +88,9 @@ export const useUserStore = defineStore("user", () => {
 
   return {
     user,
-    login,
-    getUserInfo,
-    logout,
+    // login,
+    // getUserInfo,
+    // logout,
     resetToken,
     setToken,
     getToken,

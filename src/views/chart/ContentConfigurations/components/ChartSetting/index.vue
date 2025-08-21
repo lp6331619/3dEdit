@@ -1,8 +1,8 @@
 <!--
  * @Author: sorry 247076126@qq.com
  * @Date: 2024-10-12 14:14:11
- * @LastEditors: Teemor 232957726@qq.com
- * @LastEditTime: 2025-05-09 17:49:08
+ * @LastEditors: Teemor
+ * @LastEditTime: 2025-08-13 16:41:06
  * @FilePath: \3DThreeEdit\src\views\chart\ContentConfigurations\components\ChartSetting\index.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -39,7 +39,7 @@
     <!-- 自定义配置项 -->
     <div v-if="currentModel && currentMesh && currentMesh.type == 'Mesh'">
       <MeshConfig :material="currentMesh.material" @update:material="handleMaterialUpdate" />
-     </div>
+    </div>
     <component
       v-else-if="targetData?.chartConfig?.conKey"
       :is="targetData?.chartConfig?.conKey"
@@ -86,8 +86,8 @@ import MeshConfig from '@/packages/components/Graphic/Model/Mesh/config.vue'
 import { deepClone } from '@/utils'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import * as THREE from 'three'
-import { netWorkInternal ,stopNetWorkInternal} from '@/hooks/netWorkInternal.hook'
-import { storedFileUploadFile } from 'swagger-api/export-api/scada-config'
+import { netWorkInternal, stopNetWorkInternal } from '@/hooks/netWorkInternal.hook'
+import { storedFileUploadFile, storedFileUploadFileOverride } from 'swagger-api/export-api/scada-config'
 import { useMessage } from 'naive-ui'
 const { targetData, chartEditStore } = useTargetData()
 const getModeList = chartEditStore.getModelList
@@ -127,18 +127,17 @@ watch(
   selectId,
   e => {
     if (!currentModel.value?.id) return
-  const obj = getModeList[currentModel.value.id]
-  const [f] = e
-  const mesh = findByUUID(obj, f)
-  currentMesh.value = mesh
+    const obj = getModeList[currentModel.value.id]
+    const [f] = e
+    const mesh = findByUUID(obj, f)
+    currentMesh.value = mesh
   },
   {
-  immediate: true
+    immediate: true
   }
 )
 const cancelEditModel = () => {
   try {
-
     // 先清除当前选中的mesh，避免在currentModel被清除后出现引用错误
     currentMesh.value = null
 
@@ -146,26 +145,23 @@ const cancelEditModel = () => {
     try {
       // 清除当前选择的模型部件
       chartEditStore.setTargetSelectChart(undefined)
-    } catch (selectError) {
-    }
+    } catch (selectError) {}
 
     // 使用更长的延迟，确保UI组件有足够时间处理状态变化
     setTimeout(() => {
       try {
         // 清除当前模型编辑状态
         chartEditStore.setCurrentModel(undefined)
-      } catch (modelError) {
-      }
+      } catch (modelError) {}
     }, 50) // 使用更长的延迟
   } catch (error) {
     // 如果出错，尝试强制重置状态
-  chartEditStore.setCurrentModel(undefined)
+    chartEditStore.setCurrentModel(undefined)
     chartEditStore.setTargetSelectChart(undefined)
   }
 }
 const handleMaterialUpdate = (newMaterial: any) => {
   if (!currentModel.value?.id || !currentMesh.value) return
-
 
   // 获取当前模型对象
   const obj = getModeList[currentModel.value.id]
@@ -216,7 +212,6 @@ const handleMaterialUpdate = (newMaterial: any) => {
 
     // 处理贴图 - 这部分是关键的改进区域
     if (newMaterial.map) {
-
       // 保存URL到各个位置
       const textureUrl = typeof newMaterial.map === 'string' ? newMaterial.map : newMaterial.mapUrl || ''
 
@@ -234,10 +229,8 @@ const handleMaterialUpdate = (newMaterial: any) => {
         }
         currentModel.value.option.materials[meshUUID].mapUrl = textureUrl
 
-
         // 加载贴图
         const applyTexture = (url: string) => {
-
           // 创建纹理加载器
           const textureLoader = new THREE.TextureLoader()
           textureLoader.setCrossOrigin('anonymous') // 设置跨域
@@ -265,7 +258,6 @@ const handleMaterialUpdate = (newMaterial: any) => {
               currentMesh.value.material.needsUpdate = true
 
               // 不再需要查找模型组件实例，已使用双向绑定同步贴图
-
             },
             undefined,
             error => {
@@ -319,8 +311,7 @@ const handleMaterialUpdate = (newMaterial: any) => {
             const fallbackTexture = new THREE.CanvasTexture(canvas)
             currentMesh.value.material.map = fallbackTexture
             currentMesh.value.material.needsUpdate = true
-          } catch (e) {
-          }
+          } catch (e) {}
         }
 
         // 执行贴图加载
@@ -343,7 +334,6 @@ const handleMaterialUpdate = (newMaterial: any) => {
       if (currentMesh.value.material.userData) {
         delete currentMesh.value.material.userData.mapUrl
       }
-
     }
   }
 
@@ -425,13 +415,10 @@ const submitEditModel = async () => {
     message.error('当前模型ID不存在，无法保存')
     return
   }
-  messageBox.value.loadingInstance = message.loading(
-    `正在保存模型...`,
-    { duration: 0 }
-  )
+  messageBox.value.loadingInstance = message.loading(`正在保存模型...`, { duration: 0 })
   // 立即设置loading状态
   loading.value = true
-  
+
   // 使用nextTick和setTimeout确保UI更新，让loading状态显示出来
   await nextTick()
   // 给浏览器一点时间去渲染UI更新
@@ -456,155 +443,156 @@ const submitEditModel = async () => {
       loading.value = false
       return
     }
-    
+
     // 更新模型列表 - 确保最新的变更已保存
     chartEditStore.setModelList(modelComponentId, model)
     messageBox.value.loadingInstance.content = `模型数据已更新，准备导出...`
-    
+
     // 再次分割任务，确保UI可以刷新
     await new Promise(resolve => setTimeout(resolve, 0))
-    
+
     // 2. 克隆并清理模型 - 避免修改原始模型
     let exportModel = model.clone()
-    
+
     // 预处理函数 - 专门用于删除之前导出产生的标记层级，并保留原始结构
     const removeExportLayers = (node: THREE.Object3D): boolean => {
-      if (!node || !node.children || node.children.length === 0) return false;
-      
-      let hasModified = false;
-      
+      if (!node || !node.children || node.children.length === 0) return false
+
+      let hasModified = false
+
       // 首先递归处理所有子节点，深度优先遍历
       // 使用一个副本，因为可能会修改children数组
-      const children = [...node.children];
+      const children = [...node.children]
       for (let i = 0; i < children.length; i++) {
-        const childHasModified = removeExportLayers(children[i]);
-        if (childHasModified) hasModified = true;
+        const childHasModified = removeExportLayers(children[i])
+        if (childHasModified) hasModified = true
       }
-      
+
       // 查找特殊的导出标记层 - 包括ExportedModel和AuxScene
       for (let i = node.children.length - 1; i >= 0; i--) {
-        const child = node.children[i];
-        
+        const child = node.children[i]
+
         // 检查是否是导出层级标记
-        if (child.name && (
-            child.name.includes('AuxScene') || 
+        if (
+          child.name &&
+          (child.name.includes('AuxScene') ||
             child.name.includes('ExportedModel') ||
-            child.name.includes('CleanedModel')
-          )) {
-          
+            child.name.includes('CleanedModel'))
+        ) {
           // 收集所有子对象
-          const grandchildren = [...child.children];
-          
+          const grandchildren = [...child.children]
+
           // 将子对象提升一级
           grandchildren.forEach(grandchild => {
             // 从标记层移除
-            child.remove(grandchild);
+            child.remove(grandchild)
             // 添加到当前节点
-            node.add(grandchild);
-          });
-          
+            node.add(grandchild)
+          })
+
           // 移除空的标记层
-          node.remove(child);
-          hasModified = true;
+          node.remove(child)
+          hasModified = true
         }
         // 检查无名称的空组，通常是第二层嵌套
-        else if (child.type === 'Group' && (!child.name || child.name === '') && child.children && child.children.length > 0) {
+        else if (
+          child.type === 'Group' &&
+          (!child.name || child.name === '') &&
+          child.children &&
+          child.children.length > 0
+        ) {
           // 如果无名空组里面有Object3D且其子对象为空，则是典型的嵌套问题
-          let hasEmptyObject3D = false;
-          
+          let hasEmptyObject3D = false
+
           for (let j = 0; j < child.children.length; j++) {
-            const grandchild = child.children[j];
-            if (grandchild.type === 'Object3D' && 
-                (!grandchild.children || grandchild.children.length === 0)) {
-              hasEmptyObject3D = true;
-              break;
+            const grandchild = child.children[j]
+            if (grandchild.type === 'Object3D' && (!grandchild.children || grandchild.children.length === 0)) {
+              hasEmptyObject3D = true
+              break
             }
           }
-          
+
           if (hasEmptyObject3D) {
-            
             // 收集所有非空的子对象
-            const validGrandchildren = [];
+            const validGrandchildren = []
             child.children.forEach(grandchild => {
-              if (!(grandchild.type === 'Object3D' && 
-                    (!grandchild.children || grandchild.children.length === 0))) {
-                validGrandchildren.push(grandchild);
+              if (!(grandchild.type === 'Object3D' && (!grandchild.children || grandchild.children.length === 0))) {
+                validGrandchildren.push(grandchild)
               }
-            });
-            
+            })
+
             if (validGrandchildren.length > 0) {
               // 将有效子对象提升一级
               validGrandchildren.forEach(grandchild => {
                 // 从当前层移除
-                child.remove(grandchild);
+                child.remove(grandchild)
                 // 添加到上一级
-                node.add(grandchild);
-              });
-              
+                node.add(grandchild)
+              })
+
               // 移除空的无名组
-              node.remove(child);
-              hasModified = true;
+              node.remove(child)
+              hasModified = true
             }
           }
         }
       }
-      
-      return hasModified;
-    };
-    
+
+      return hasModified
+    }
+
     // 执行预处理 - 移除导出标记层
-    const hasRemovedLayers = removeExportLayers(exportModel);
+    const hasRemovedLayers = removeExportLayers(exportModel)
     if (hasRemovedLayers) {
       messageBox.value.loadingInstance.content = `已优化模型结构，移除冗余层级...`
     }
 
     // 清理模型 - 只移除辅助对象，保留原始结构
     const cleanupModel = (node: THREE.Object3D) => {
-      if (!node || !node.children || node.children.length === 0) return;
-      
+      if (!node || !node.children || node.children.length === 0) return
+
       // 首先检查是否有AuxScene层嵌套的情况
-      let hasFixed = false;
-      
+      let hasFixed = false
+
       // 检查特殊情况：只有一个无名子对象，该子对象再包含AuxScene
-      if (node.children.length === 1 && 
-          node.children[0].type === 'Group' && 
-          (!node.children[0].name || node.children[0].name === '')) {
-        
-        
+      if (
+        node.children.length === 1 &&
+        node.children[0].type === 'Group' &&
+        (!node.children[0].name || node.children[0].name === '')
+      ) {
         // 检查内部子对象
-        const innerGroup = node.children[0];
-        
+        const innerGroup = node.children[0]
+
         // 查找内部是否有AuxScene或实际内容
-        const auxSceneChildren: THREE.Object3D[] = [];
-        const validChildren: THREE.Object3D[] = [];
-        
+        const auxSceneChildren: THREE.Object3D[] = []
+        const validChildren: THREE.Object3D[] = []
+
         innerGroup.children.forEach(child => {
           if (child.name && child.name.includes('AuxScene')) {
-            auxSceneChildren.push(child);
+            auxSceneChildren.push(child)
           } else {
-            validChildren.push(child);
+            validChildren.push(child)
           }
-        });
-        
+        })
+
         if (auxSceneChildren.length > 0 && validChildren.length > 0) {
-          
           // 移除当前子对象
-          node.remove(innerGroup);
-          
+          node.remove(innerGroup)
+
           // 添加有效子对象
           validChildren.forEach(child => {
-            innerGroup.remove(child);
-            node.add(child);
-          });
-          
-          hasFixed = true;
+            innerGroup.remove(child)
+            node.add(child)
+          })
+
+          hasFixed = true
         }
       }
-      
+
       // 如果没有修复嵌套问题，执行常规清理
       if (!hasFixed) {
-        const objectsToRemove: THREE.Object3D[] = [];
-        
+        const objectsToRemove: THREE.Object3D[] = []
+
         for (let i = 0; i < node.children.length; i++) {
           const child = node.children[i]
 
@@ -628,54 +616,50 @@ const submitEditModel = async () => {
           }
           // 检查是否是空的Object3D对象 - 这是关键修复
           else if (
-            child.type === 'Object3D' && 
-            Array.isArray(child.children) && 
+            child.type === 'Object3D' &&
+            Array.isArray(child.children) &&
             child.children.length === 0 &&
             !(child as any).isMesh
           ) {
             objectsToRemove.push(child)
           }
           // 检查是否存在Group > 空Object3D的嵌套结构
-          else if (
-            child.type === 'Group' && 
-            child.children && 
-            child.children.length > 0
-          ) {
+          else if (child.type === 'Group' && child.children && child.children.length > 0) {
             // 查找是否有空的Object3D子对象
-            let hasEmptyObject3D = false;
-            let validGrandchildren: THREE.Object3D[] = [];
-            
+            let hasEmptyObject3D = false
+            let validGrandchildren: THREE.Object3D[] = []
+
             // 检查所有子对象
             for (let j = 0; j < child.children.length; j++) {
-              const grandchild = child.children[j];
-              if (grandchild.type === 'Object3D' && 
-                  (!grandchild.children || grandchild.children.length === 0) && 
-                  !(grandchild as any).isMesh) {
+              const grandchild = child.children[j]
+              if (
+                grandchild.type === 'Object3D' &&
+                (!grandchild.children || grandchild.children.length === 0) &&
+                !(grandchild as any).isMesh
+              ) {
                 // 找到空的Object3D
-                hasEmptyObject3D = true;
-                objectsToRemove.push(grandchild);
+                hasEmptyObject3D = true
+                objectsToRemove.push(grandchild)
               } else {
                 // 收集有效子对象
-                validGrandchildren.push(grandchild);
+                validGrandchildren.push(grandchild)
               }
             }
-            
+
             // 继续递归处理
-            cleanupModel(child);
-          }
-          else {
+            cleanupModel(child)
+          } else {
             cleanupModel(child)
           }
         }
-        
+
         for (const obj of objectsToRemove) {
           try {
-            node.remove(obj);
-          } catch (e) {
-          }
+            node.remove(obj)
+          } catch (e) {}
         }
       }
-    };
+    }
 
     // 递归清理模型 - 只移除辅助对象，保留原始结构
     cleanupModel(exportModel)
@@ -686,7 +670,6 @@ const submitEditModel = async () => {
 
     // 再次检查exportModel是否有效
     if (!exportModel.children || exportModel.children.length === 0) {
-
       // 尝试恢复：如果清理后模型为空，但原始模型不为空，直接使用克隆的原始模型
       if (model.children && model.children.length > 0) {
         // 重新克隆模型，但不进行清理
@@ -771,82 +754,80 @@ const submitEditModel = async () => {
       })
     }
 
-
     // 5. 导出为GLTF格式
     // 再次确保UI能更新显示loading状态
     await nextTick()
     await new Promise(resolve => setTimeout(resolve, 20))
-    
+
     messageBox.value.loadingInstance.content = `正在导出模型...`
-    
+
     // 最终清理：递归检查并删除所有包含ExportedModel的对象
     const removeExportedModelLayers = (node: THREE.Object3D) => {
-      if (!node || !node.children || node.children.length === 0) return;
-      
+      if (!node || !node.children || node.children.length === 0) return
+
       // 递归处理所有子节点前，先保存子节点副本，避免在遍历过程中修改原数组
-      const childrenCopy = [...node.children];
-      
+      const childrenCopy = [...node.children]
+
       // 递归处理所有子节点
-      childrenCopy.forEach(child => removeExportedModelLayers(child));
-      
+      childrenCopy.forEach(child => removeExportedModelLayers(child))
+
       // 检查当前节点下是否有包含ExportedModel的子节点
       for (let i = node.children.length - 1; i >= 0; i--) {
-        const child = node.children[i];
-        
+        const child = node.children[i]
+
         // 如果子节点名称包含ExportedModel
         if (child.name && child.name.includes('ExportedModel')) {
-          
           // 收集所有孙子节点
-          const grandchildren = [...child.children];
-          
+          const grandchildren = [...child.children]
+
           // 将孙子节点提升到当前节点下
           grandchildren.forEach(grandchild => {
-            child.remove(grandchild);
-            node.add(grandchild);
-          });
-          
+            child.remove(grandchild)
+            node.add(grandchild)
+          })
+
           // 移除包含ExportedModel的空节点
-          node.remove(child);
+          node.remove(child)
         }
       }
-    };
-    
+    }
+
     // 执行最终清理 - 删除所有包含ExportedModel的层
-    removeExportedModelLayers(exportModel);
-    
+    removeExportedModelLayers(exportModel)
+
     const exportedGltf: any = await new Promise<any>((resolve, reject) => {
       // 最终导出安全检查
       if (!exportModel.children || exportModel.children.length === 0) {
         // 添加占位组，确保导出不会完全失败
         const placeholderGroup = new THREE.Group()
-        placeholderGroup.name = "EmergencyPlaceholder"
+        placeholderGroup.name = 'EmergencyPlaceholder'
         exportModel.add(placeholderGroup)
         message.warning('模型可能包含异常结构，已添加占位元素确保导出')
       }
-      
+
       // 导出前重命名顶层对象，防止生成空名称组
       if (!exportModel.name) {
-        exportModel.name = "ExportedModel_" + Date.now()
-      } 
-      
+        exportModel.name = 'ExportedModel_' + Date.now()
+      }
+
       // 确保模型结构不变，设置用户自定义标记防止额外嵌套
       exportModel.userData = exportModel.userData || {}
       exportModel.userData.preserveStructure = true
-      
+
       const exporter = new GLTFExporter()
       exporter.parse(
         exportModel,
-        (gltf) => resolve(gltf),
-        (error) => reject(error),
-        { 
-          binary: true,            // 使用二进制格式
-          embedImages: true,       // 嵌入图片
+        gltf => resolve(gltf),
+        error => reject(error),
+        {
+          binary: true, // 使用二进制格式
+          embedImages: true, // 嵌入图片
           includeCustomExtensions: true, // 包含自定义扩展
-          onlyVisible: true,       // 只导出可见对象
-          trs: false,               // 不分解变换矩阵
-          truncateDrawRange: true, // 优化几何体数据范围
+          onlyVisible: true, // 只导出可见对象
+          trs: false, // 不分解变换矩阵
+          truncateDrawRange: true // 优化几何体数据范围
         }
-      );
+      )
     })
 
     // 6. 创建File对象并上传
@@ -867,25 +848,24 @@ const submitEditModel = async () => {
       const output = JSON.stringify(jsonData)
       blob = new Blob([output], { type: 'application/json' })
     }
-    
+
     // 在文件上传前再次更新UI
     await nextTick()
     await new Promise(resolve => setTimeout(resolve, 20))
 
     messageBox.value.loadingInstance.content = `正在上传模型文件...`
-    const file = new File([blob], `model_${Date.now()}.glb`, { type: blob.type })
-
+    const name = currentModel.value?.meshConfig.split('/')
+    const lastName = name[name.length - 1].split('?')[0]
+    const file = new File([blob], lastName, { type: blob.type })
+    // const file = new File([blob], 'b3e8c6ba-1f0c-40b2-9537-be1afe13a94b.glb', { type: blob.type })
     // 上传文件到服务器
-    const res = await storedFileUploadFile({ file: file })
+    const res = await storedFileUploadFileOverride({ file: file })
     if (!res.data) throw new Error('模型上传失败: 未获取到URL')
-
-    const modelUrl = res.data
+    const modelUrl = res.data + '?' + new Date().getTime()
     messageBox.value.loadingInstance.content = `模型上传成功，正在更新组件配置...`
-
     // 7. 更新组件配置
     // 注意：这里使用modelComponentId，不使用targetChart.selectId
     // 因为targetChart.selectId是当前选中的mesh ID，而我们需要更新模型组件ID
-
     // 更新组件配置
     chartEditStore.setComponentListAll(modelComponentId, modelUrl, 'meshConfig')
 
@@ -902,7 +882,7 @@ const submitEditModel = async () => {
       try {
         // 先退出编辑模式
         chartEditStore.setCurrentModel(undefined)
-        
+
         // 最后关闭loading状态
         loading.value = false
       } catch (error) {
