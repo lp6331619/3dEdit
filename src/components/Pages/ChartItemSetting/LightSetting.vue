@@ -7,7 +7,7 @@
             <Select v-model:value="item.type" :index="i" :list="lightTypeOptions" @change="onChange"></Select>
           </setting-item>
           <setting-item>
-            <n-button strong secondary type="error" size="small" @click="delItem(i)"> 删除灯光 </n-button>
+            <n-button strong secondary type="error" size="small" :disabled="config.length === 1" @click="delItem(i)"> 删除灯光 </n-button>
           </setting-item>
         </setting-item-box>
         <setting-item-box name="位置" v-if="item.type !== 'TresAmbientLight'">

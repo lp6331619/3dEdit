@@ -34,12 +34,36 @@
       />
       <!-- 灯光 -->
       <component
+        v-if="isPreview"
         v-for="(item, i) in config.lightSetting"
         :key="i"
         ref="lightRef"
         :is="item.type"
         v-bind="item.config"
       />
+      <template v-else v-for="(item, i) in config.lightSetting" :key="`${i}-${item.type}`">
+        <TresDirectionalLight
+          v-if="item.type === 'TresDirectionalLight'"
+          v-bind="item.config"
+          v-light-helper
+        />
+        <TresSpotLight
+          v-else-if="item.type === 'TresSpotLight'"
+          v-bind="item.config"
+          v-light-helper
+        />
+        <TresPointLight
+          v-else-if="item.type === 'TresPointLight'"
+          v-bind="item.config"
+          v-light-helper
+        />
+        <TresHemisphereLight
+          v-else-if="item.type === 'TresHemisphereLight'"
+          v-bind="item.config"
+          v-light-helper
+        />
+      </template>
+
       <tresItem
         :components="components"
         :componentList="config.componentList"
@@ -126,6 +150,7 @@ const ModelLoad = defineAsyncComponent(() => import('@/components/ModelLoad/inde
 const tresItem = defineAsyncComponent(() => import('./item.vue'))
 const PatrolPathLine = defineAsyncComponent(() => import('./PatrolPathLine.vue'))
 const PatrolFloatWindow = defineAsyncComponent(() => import('./PatrolFloatWindow.vue'))
+// const LightHelpers = defineAsyncComponent(() => import('./LightHelpers.vue'))
 
 // 添加全局变量用于控制渲染循环和变换操作
 if (typeof window !== 'undefined') {
@@ -166,6 +191,24 @@ const patrolPathPoints = computed(() => {
 
 const targetChart = chartEditStore.getTargetChart
 const emits = defineEmits(['click', 'rightClick'])
+
+// Helper 参数函数：根据灯光类型返回对应 Helper 配置
+// 参考 @tresjs/core v-light-helper: ['DirectionalLightHelper', size, color]
+const getLightHelper = (item) => {
+  const color =  '#ffffff'
+  switch (item?.type) {
+    case 'TresDirectionalLight':
+      return ['DirectionalLightHelper', 2, 0x00ffff]
+    case 'TresSpotLight':
+      return ['SpotLightHelper', '#00ffff']
+    case 'TresPointLight':
+      return ['PointLightHelper', 0.4, 0x00ffff]
+    case 'TresHemisphereLight':
+      return ['HemisphereLightHelper', 1]
+    default:
+      return undefined
+  }
+}
 const TresCanvasRef = shallowRef()
 const cameraRefs = shallowRef()
 const lightRef = shallowRef([])
